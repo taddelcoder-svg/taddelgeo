@@ -5,8 +5,6 @@
   --bg:#eef2f6; --flaeche:#ffffff; --flaeche2:#f5f7fa; --text:#132033; --leise:#56657a; --rand:#d3dbe5;
   --akzent:#1f6fd1; --akzent-text:#fff; --gut:#1d9b52; --warn:#d9822b; --schlecht:#c8372d;
   --glas:rgba(12,20,32,.72); --glas-text:#f2f6fb; --glas-rand:rgba(255,255,255,.14);
-  --karte-meer:#a9d0ea; --karte-land:#f6f2e8; --karte-grenze:#ab9e86; --karte-netz:rgba(255,255,255,.38);
-  --karte-text:#4a4234; --karte-halo:rgba(255,255,255,.85); --karte-stadt:#6b5f4c;
   --schatten:0 10px 30px rgba(10,25,45,.18);
   color-scheme:light;
 }
@@ -14,8 +12,6 @@
   :root:not([data-theme="light"]){
     --bg:#0c131c; --flaeche:#152130; --flaeche2:#1b293a; --text:#eef3f8; --leise:#9eadbf; --rand:#2a3a4d;
     --akzent:#5ea2ff; --akzent-text:#0c131c; --gut:#4cd083; --warn:#f0a354; --schlecht:#ff7b6e;
-    --karte-meer:#1d3a55; --karte-land:#3a4a3f; --karte-grenze:#6f8574; --karte-netz:rgba(255,255,255,.08);
-    --karte-text:#e3eadf; --karte-halo:rgba(10,20,30,.8); --karte-stadt:#cfd8c9;
     --schatten:0 10px 30px rgba(0,0,0,.45);
     color-scheme:dark;
   }
@@ -23,8 +19,6 @@
 :root[data-theme="dark"]{
   --bg:#0c131c; --flaeche:#152130; --flaeche2:#1b293a; --text:#eef3f8; --leise:#9eadbf; --rand:#2a3a4d;
   --akzent:#5ea2ff; --akzent-text:#0c131c; --gut:#4cd083; --warn:#f0a354; --schlecht:#ff7b6e;
-  --karte-meer:#1d3a55; --karte-land:#3a4a3f; --karte-grenze:#6f8574; --karte-netz:rgba(255,255,255,.08);
-  --karte-text:#e3eadf; --karte-halo:rgba(10,20,30,.8); --karte-stadt:#cfd8c9;
   --schatten:0 10px 30px rgba(0,0,0,.45);
   color-scheme:dark;
 }
@@ -119,7 +113,7 @@ input:focus-visible{border-color:var(--akzent);box-shadow:0 0 0 3px color-mix(in
 .rate-box:hover,.rate-box.fest{opacity:1}
 .rate-box:hover,.rate-box.fest{width:var(--kb-gross,560px)}
 .rate-box:hover .kartenflaeche,.rate-box.fest .kartenflaeche{height:var(--kh-gross,400px)}
-.rate-box .kartenflaeche{width:100%;height:var(--kh,220px);border-radius:12px;border:2px solid rgba(255,255,255,.7);box-shadow:0 8px 24px rgba(0,0,0,.4);transition:height .2s;cursor:crosshair}
+.rate-box .kartenflaeche{width:100%;height:var(--kh,220px);border-radius:12px;border:2px solid rgba(255,255,255,.7);box-shadow:0 8px 24px rgba(0,0,0,.4);transition:height .2s;overflow:hidden}
 .rate-werkzeuge{display:flex;gap:4px;justify-content:flex-start}
 .rate-werkzeuge button,.zoom-knoepfe button{width:30px;height:30px;border-radius:8px;border:1px solid var(--glas-rand);background:var(--glas);color:#fff;font-weight:800;padding:0}
 .zoom-knoepfe{position:absolute;right:8px;top:46px;display:flex;flex-direction:column;gap:4px}
@@ -173,3 +167,12 @@ input:focus-visible{border-color:var(--akzent);box-shadow:0 0 0 3px color-mix(in
   .ergebnis-karte{max-height:60vh}
   .zahl b{font-size:1.45rem}
 }
+
+/* ---------- Karte (Leaflet) ---------- */
+.kartenflaeche.leaflet-container{background:#aad3df;font:inherit}
+.rate-box .leaflet-container{cursor:crosshair}
+.rate-box .leaflet-dragging .leaflet-container,.rate-box .leaflet-container.leaflet-drag-target{cursor:grabbing}
+.karten-nadel{background:none;border:0}
+.karten-nadel svg{display:block;filter:drop-shadow(0 2px 3px rgba(0,0,0,.4))}
+.leaflet-control-attribution{font-size:11px;font-family:system-ui,sans-serif}
+.zoom-knoepfe{z-index:500}

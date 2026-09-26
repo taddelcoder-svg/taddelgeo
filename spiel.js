@@ -296,7 +296,7 @@
 
   /* ================= Zustand ================= */
   const z = {
-    ws:null, verbunden:false, welt:null, regionen:[], raum:null, du:null,
+    ws:null, verbunden:false, regionen:[], raum:null, du:null,
     runde:null, tipp:null, abgegeben:false, endeZeit:0, aufloesung:null, ende:null,
     soloEinst:{ runden:5, zeit:0, region:'welt', bewegen:true, ...speicher.lesen('wb-solo', {}) },
     sitzung:speicher.sitzungLesen('wb-sitzung'),
@@ -469,12 +469,6 @@
   let minikarte = null, grosskarte = null, uhrTimer = null;
   z.karten = () => ({ minikarte, grosskarte });   // zum Testen
 
-  async function weltLaden(){
-    if (z.welt) return z.welt;
-    const r = await fetch('/welt.json');
-    z.welt = await r.json();
-    return z.welt;
-  }
   const kartenStufen = [[280, 190, 480, 340], [360, 240, 620, 440], [460, 320, 760, 540]];
   function kartenGroesse(){
     const [kb, kh, gb, gh] = kartenStufen[z.kartenStufe] || kartenStufen[1];
@@ -508,14 +502,13 @@
   });
 
   async function rundeBeginnen(m){
-    await weltLaden();
     z.runde = m; z.aufloesung = null; z.ende = null;
     z.tipp = null; z.abgegeben = !!m.schonGeraten;
     schirm('hud');
     kartenGroesse();
     $('#rateBox').classList.remove('offen');
     if (!minikarte){
-      minikarte = new Karte($('#minikarte'), z.welt, { onKlick:(lat, lon) => {
+      minikarte = new Karte($('#minikarte'), { onKlick:(lat, lon) => {
         if (z.abgegeben) return;
         z.tipp = { lat, lon };
         minikarte.setzen([{ lat, lon, farbe:FARBEN[0] }]);
@@ -570,12 +563,11 @@
   }
 
   async function aufloesungZeigen(m){
-    await weltLaden();
     clearInterval(uhrTimer);
     z.aufloesung = m;
     $('#rateBox').classList.remove('offen');
     schirm('ergebnis');
-    if (!grosskarte) grosskarte = new Karte($('#grosskarte'), z.welt);
+    if (!grosskarte) grosskarte = new Karte($('#grosskarte'));
     else grosskarte.groesse();
     const marker = [{ lat:m.ziel.lat, lon:m.ziel.lon, art:'ziel' }];
     const linien = [];
@@ -684,5 +676,4 @@
     else { $('#name').focus(); meldung('Gib deinen Namen ein und tipp auf „Beitreten“.', 5000); }
   }
   verbinden();
-  weltLaden().catch(() => {});
 })();

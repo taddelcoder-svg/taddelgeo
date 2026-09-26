@@ -6,7 +6,6 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const zlib = require('zlib');
 const os = require('os');
 const crypto = require('crypto');
 const sharp = require('sharp');
@@ -33,7 +32,6 @@ const DATEIEN = new Map([
 
 /* ---------- Welt und Strecken ---------- */
 const welt = JSON.parse(fs.readFileSync(path.join(__dirname, 'daten', 'welt.json'), 'utf8'));
-const weltGzip = zlib.gzipSync(JSON.stringify(welt), { level:9 });
 
 function peilung(a, b){
   const r = Math.PI / 180;
@@ -146,7 +144,9 @@ main{max-width:760px;margin:auto}a{color:var(--a)}p,li{color:var(--leise)}li{mar
 (ursprünglich von Mapillary) und stehen unter freien Lizenzen. Eine Strecke besteht aus den Bildern einer Aufnahmefahrt;
 der Link führt zur Sammlung aller Bilder dieser Fahrt. Für das Spiel wurden sie verkleinert.
 Die Reihenfolge hier verrät nicht, welche Strecke im Spiel gerade dran ist.</p>
-<p>Karte: <a href="https://www.naturalearthdata.com" rel="noopener" target="_blank">Natural Earth</a> (gemeinfrei), vereinfacht.
+<p>Karte: © <a href="https://www.openstreetmap.org/copyright" rel="noopener" target="_blank">OpenStreetMap</a>-Mitwirkende (Daten unter ODbL, Kacheln von openstreetmap.org).
+Ländergrenzen für die Auswertung: <a href="https://www.naturalearthdata.com" rel="noopener" target="_blank">Natural Earth</a> (gemeinfrei).
+Kartenanzeige: Leaflet (BSD-Lizenz).
 3D-Anzeige: three.js (MIT-Lizenz). Schrift: Barlow Semi Condensed (SIL Open Font License).</p>
 <ol>${zeilen}</ol>
 <p><a href="/">Zurück zum Spiel</a> · <a href="/datenschutz">Datenschutz</a></p>
@@ -157,7 +157,7 @@ Die Reihenfolge hier verrät nicht, welche Strecke im Spiel gerade dran ist.</p>
 // Die Spieler laden alles von hier; nur dieser Server spricht mit Wikimedia.
 const ZWISCHEN = process.env.CACHE_DIR || path.join(os.tmpdir(), 'weltenbummler-panos');
 const MAX_ZWISCHEN = Number(process.env.CACHE_MAX) || 2500;   // Dateien, danach fliegen die ältesten raus
-const UA = { 'User-Agent':'Weltenbummler/1.0 (privates Familien-Spiel; kohlermatteo1@gmail.com)' };
+const UA = { 'User-Agent':'Weltenbummler/1.0 (privates Familien-Spiel; +https://github.com/taddelcoder-svg/taddelgeo)' };
 fs.mkdirSync(ZWISCHEN, { recursive:true });
 const unterwegs = new Map();   // id -> Promise (gleiche Anfragen nur einmal holen)
 const warteschlange = [];
@@ -222,6 +222,58 @@ function panoSenden(res, id){
     res.writeHead(502, { 'Content-Type':'text/plain; charset=utf-8' }); res.end('Panorama gerade nicht verfügbar');
   });
 }
+/* ---------- Kartenkacheln von OpenStreetMap, über diesen Server ---------- */
+// Nach der Nutzungsrichtlinie von tile.openstreetmap.org: erkennbarer User-Agent, mindestens
+// 7 Tage zwischenspeichern, nur Kacheln holen, die gerade jemand ansieht (kein Vorladen).
+const KACHEL_ALTER = 7 * 24 * 3600 * 1000;
+const KACHELN = path.join(ZWISCHEN, 'kacheln');
+const kachelnUnterwegs = new Map();
+let kachelnLaufend = 0;
+const kachelSchlange = [];
+function kachelNaechste(){
+  while (kachelnLaufend < 3 && kachelSchlange.length){ kachelnLaufend++; kachelSchlange.shift()(); }
+}
+function kachelHolen(z, x, y, ziel){
+  const schluessel = `${z}/${x}/${y}`;
+  if (kachelnUnterwegs.has(schluessel)) return kachelnUnterwegs.get(schluessel);
+  const p = new Promise((ok, fehler) => kachelSchlange.push(async () => {
+    try {
+      const r = await fetch(`https://tile.openstreetmap.org/${schluessel}.png`, { headers:UA, signal:AbortSignal.timeout(20_000) });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const daten = Buffer.from(await r.arrayBuffer());
+      await fs.promises.mkdir(path.dirname(ziel), { recursive:true });
+      await fs.promises.writeFile(ziel + '.tmp', daten);
+      await fs.promises.rename(ziel + '.tmp', ziel);
+      ok(daten);
+    } catch (e){ fehler(e); }
+    finally { kachelnLaufend--; kachelnUnterwegs.delete(schluessel); kachelNaechste(); }
+  }));
+  kachelnUnterwegs.set(schluessel, p);
+  kachelNaechste();
+  return p;
+}
+function kachelSenden(res, z, x, y){
+  const n = 2 ** z;
+  if (z > 19 || x >= n || y >= n){ res.writeHead(404); return res.end(); }
+  const ziel = path.join(KACHELN, String(z), String(x), y + '.png');
+  const schicken = daten => {
+    res.writeHead(200, { 'Content-Type':'image/png', 'Content-Length':daten.length, 'Cache-Control':'public, max-age=604800' });
+    res.end(daten);
+  };
+  fs.stat(ziel, (err, st) => {
+    if (!err && Date.now() - st.mtimeMs < KACHEL_ALTER) return fs.readFile(ziel, (e, d) => (e ? kachelHolen(z, x, y, ziel).then(schicken, fehlt) : schicken(d)));
+    kachelHolen(z, x, y, ziel).then(schicken, e => {
+      // Wenn OSM nicht antwortet, lieber eine ältere Kachel zeigen als gar keine
+      if (!err) return fs.readFile(ziel, (e2, d) => (e2 ? fehlt(e) : schicken(d)));
+      fehlt(e);
+    });
+  });
+  function fehlt(e){
+    console.warn('Kachel nicht geladen:', z, x, y, e && e.message);
+    res.writeHead(502, { 'Content-Type':'text/plain; charset=utf-8' }); res.end('Kachel gerade nicht verfügbar');
+  }
+}
+
 // Nächste Schritte schon mal holen, damit das Laufen flüssig ist
 function vorladen(ort, abIndex, tiefe = 2){
   const g = ort.graph, gesehen = new Set([abIndex]);
@@ -247,14 +299,10 @@ const server = http.createServer((req, res) => {
   if (req.method !== 'GET' && req.method !== 'HEAD'){ res.writeHead(405); return res.end(); }
   const pano = /^\/panos\/([a-f0-9]{12})\.jpg$/.exec(url.pathname);
   if (pano) return panoSenden(res, pano[1]);
-  const vendor = /^\/vendor\/([\w-]+(?:\.[\w-]+)*\.(js|woff2|txt))$/.exec(url.pathname);
+  const kachel = /^\/kacheln\/(\d{1,2})\/(\d{1,7})\/(\d{1,7})\.png$/.exec(url.pathname);
+  if (kachel) return kachelSenden(res, +kachel[1], +kachel[2], +kachel[3]);
+  const vendor = /^\/vendor\/([\w-]+(?:\.[\w-]+)*\.(js|css|woff2|txt))$/.exec(url.pathname);
   if (vendor) return senden(res, path.join('vendor', vendor[1]), 'public, max-age=604800');
-  if (url.pathname === '/welt.json'){
-    const gz = /\bgzip\b/.test(req.headers['accept-encoding'] || '');
-    const body = gz ? weltGzip : zlib.gunzipSync(weltGzip);
-    res.writeHead(200, { 'Content-Type':TYPEN['.json'], 'Cache-Control':'public, max-age=86400', 'Content-Length':body.length, ...(gz ? { 'Content-Encoding':'gzip' } : {}), 'Vary':'Accept-Encoding' });
-    return res.end(body);
-  }
   if (url.pathname === '/bildnachweise') return bildnachweise(res);
   if (DATEIEN.has(url.pathname)) return senden(res, DATEIEN.get(url.pathname), 'no-cache');
   res.writeHead(404, { 'Content-Type':'text/plain; charset=utf-8' });
