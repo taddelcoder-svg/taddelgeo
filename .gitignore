@@ -1,0 +1,8 @@
+node_modules/
+werkzeug/*.geojson
+werkzeug/*.log
+werkzeug/bilder-cache/
+werkzeug/blatt-*.jpg
+werkzeug/lauf.log
+werkzeug/paare-*.jpg
+werkzeug/probe*.jpg

@@ -1,0 +1,175 @@
+@font-face{font-family:"Barlow SC";src:url(/vendor/barlow-semi-condensed-600.woff2) format("woff2");font-weight:600;font-display:swap}
+@font-face{font-family:"Barlow SC";src:url(/vendor/barlow-semi-condensed-800.woff2) format("woff2");font-weight:800;font-display:swap}
+
+:root{
+  --bg:#eef2f6; --flaeche:#ffffff; --flaeche2:#f5f7fa; --text:#132033; --leise:#56657a; --rand:#d3dbe5;
+  --akzent:#1f6fd1; --akzent-text:#fff; --gut:#1d9b52; --warn:#d9822b; --schlecht:#c8372d;
+  --glas:rgba(12,20,32,.72); --glas-text:#f2f6fb; --glas-rand:rgba(255,255,255,.14);
+  --karte-meer:#a9d0ea; --karte-land:#f6f2e8; --karte-grenze:#ab9e86; --karte-netz:rgba(255,255,255,.38);
+  --karte-text:#4a4234; --karte-halo:rgba(255,255,255,.85); --karte-stadt:#6b5f4c;
+  --schatten:0 10px 30px rgba(10,25,45,.18);
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0c131c; --flaeche:#152130; --flaeche2:#1b293a; --text:#eef3f8; --leise:#9eadbf; --rand:#2a3a4d;
+    --akzent:#5ea2ff; --akzent-text:#0c131c; --gut:#4cd083; --warn:#f0a354; --schlecht:#ff7b6e;
+    --karte-meer:#1d3a55; --karte-land:#3a4a3f; --karte-grenze:#6f8574; --karte-netz:rgba(255,255,255,.08);
+    --karte-text:#e3eadf; --karte-halo:rgba(10,20,30,.8); --karte-stadt:#cfd8c9;
+    --schatten:0 10px 30px rgba(0,0,0,.45);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0c131c; --flaeche:#152130; --flaeche2:#1b293a; --text:#eef3f8; --leise:#9eadbf; --rand:#2a3a4d;
+  --akzent:#5ea2ff; --akzent-text:#0c131c; --gut:#4cd083; --warn:#f0a354; --schlecht:#ff7b6e;
+  --karte-meer:#1d3a55; --karte-land:#3a4a3f; --karte-grenze:#6f8574; --karte-netz:rgba(255,255,255,.08);
+  --karte-text:#e3eadf; --karte-halo:rgba(10,20,30,.8); --karte-stadt:#cfd8c9;
+  --schatten:0 10px 30px rgba(0,0,0,.45);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font:600 17px/1.45 "Barlow SC",system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-tap-highlight-color:transparent}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--akzent)}
+h1,h2{font-weight:800;line-height:1.1;margin:0}
+[hidden]{display:none !important}
+
+/* ---------- Schirme ---------- */
+.schirm{position:fixed;inset:0;display:none;overflow:auto;z-index:5;background:var(--bg)}
+.schirm.aktiv{display:block}
+.start-innen{max-width:880px;margin:0 auto;padding:max(24px,env(safe-area-inset-top)) 16px 32px}
+.kopf{display:flex;gap:16px;align-items:center;margin:8px 0 24px}
+.logo{width:64px;height:64px;flex:none;filter:drop-shadow(0 4px 10px rgba(31,111,209,.35))}
+h1{font-size:clamp(2rem,6vw,3rem);letter-spacing:.01em}
+.unterzeile{margin:4px 0 0;color:var(--leise);font-size:1.05rem}
+.feld{display:block;max-width:360px;margin-bottom:20px}
+.feld span{display:block;font-size:.9rem;color:var(--leise);margin-bottom:4px}
+input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--rand);background:var(--flaeche);outline:none}
+input:focus-visible{border-color:var(--akzent);box-shadow:0 0 0 3px color-mix(in srgb,var(--akzent) 30%,transparent)}
+.karten-reihe{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.modus{background:var(--flaeche);border:1px solid var(--rand);border-radius:16px;padding:20px;box-shadow:var(--schatten);display:flex;flex-direction:column;gap:14px}
+.modus h2{font-size:1.5rem}
+.leise{color:var(--leise);margin:0}
+.knopf{border:0;border-radius:10px;background:var(--akzent);color:var(--akzent-text);padding:10px 16px;font-weight:800;letter-spacing:.02em;transition:transform .08s,filter .15s}
+.knopf:hover:not(:disabled){filter:brightness(1.08)}
+.knopf:active:not(:disabled){transform:translateY(1px)}
+.knopf:disabled{opacity:.55;cursor:default}
+.knopf.gross{padding:14px 18px;font-size:1.15rem}
+.knopf.zweit{background:var(--flaeche2);color:var(--text);border:1px solid var(--rand)}
+.zeile{display:flex;gap:8px}
+.zeile input{flex:1;min-width:0}
+#code{text-transform:uppercase;letter-spacing:.3em;font-weight:800;text-align:center}
+.oder{display:flex;align-items:center;gap:10px;color:var(--leise);font-size:.9rem}
+.oder::before,.oder::after{content:"";flex:1;height:1px;background:var(--rand)}
+.fehler{color:var(--schlecht);margin:16px 0 0}
+.fuss{margin-top:28px;color:var(--leise);font-size:.9rem;text-align:center}
+.zurueck{background:none;border:0;color:var(--akzent);padding:4px 0;margin-bottom:12px}
+
+.einst{display:flex;flex-direction:column;gap:10px}
+.einst-gruppe span.titel{display:block;font-size:.85rem;color:var(--leise);margin-bottom:4px}
+.segment{display:flex;flex-wrap:wrap;gap:6px}
+.segment button{border:1px solid var(--rand);background:var(--flaeche2);border-radius:999px;padding:5px 12px;font-size:.95rem}
+.segment button[aria-pressed="true"]{background:var(--akzent);border-color:var(--akzent);color:var(--akzent-text)}
+.segment button:disabled{cursor:default}
+.segment button:disabled:not([aria-pressed="true"]){opacity:.55}
+
+.code-gross{font-size:clamp(3rem,14vw,5rem);font-weight:800;letter-spacing:.2em;line-height:1;margin:4px 0 16px}
+.teilen{max-width:520px;margin-bottom:20px}
+#lobby h2{font-size:1.25rem;margin:20px 0 10px}
+.spielerliste{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+.spielerliste li{background:var(--flaeche);border:1px solid var(--rand);border-radius:999px;padding:6px 14px}
+.spielerliste li.du{border-color:var(--akzent)}
+.spielerliste .krone{margin-left:4px}
+#partyStart{margin-top:20px}
+#lobbyHinweis{margin-top:14px}
+
+/* ---------- Panorama + HUD ---------- */
+#pano{position:fixed;inset:0;background:#0b1320;touch-action:none;cursor:grab}
+#pano:active{cursor:grabbing}
+#panoFlaeche{width:100%;height:100%;display:block}
+.laden{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:12px;color:#fff;background:rgba(8,14,24,.55);font-size:1.1rem}
+.kreisel{width:42px;height:42px;border-radius:50%;border:4px solid rgba(255,255,255,.25);border-top-color:#fff;animation:dreh 0.9s linear infinite}
+@keyframes dreh{to{transform:rotate(360deg)}}
+
+#hud{position:fixed;inset:0;pointer-events:none;z-index:3;color:var(--glas-text)}
+#hud > *{pointer-events:auto}
+.hud-oben{position:absolute;top:max(12px,env(safe-area-inset-top));right:12px;display:flex;gap:8px;pointer-events:none}
+.pille{background:var(--glas);border:1px solid var(--glas-rand);backdrop-filter:blur(8px);border-radius:12px;padding:6px 14px;display:flex;flex-direction:column;align-items:center;min-width:76px}
+.pille .klein{font-size:.72rem;opacity:.75;text-transform:uppercase;letter-spacing:.08em}
+.pille b{font-size:1.25rem;font-weight:800;font-variant-numeric:tabular-nums}
+#hudZeitBox.knapp{background:rgba(200,55,45,.85)}
+.hud-links{position:absolute;top:max(12px,env(safe-area-inset-top));left:12px;pointer-events:none}
+.mitspieler{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.mitspieler li{background:var(--glas);border:1px solid var(--glas-rand);border-radius:999px;padding:3px 12px;font-size:.95rem;backdrop-filter:blur(8px)}
+.mitspieler li.fertig::after{content:" ✓";color:#7ee2a2}
+.mitspieler li.weg{opacity:.5}
+.hud-knoepfe{position:absolute;left:12px;bottom:max(16px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:8px}
+.rund{width:44px;height:44px;border-radius:50%;border:1px solid var(--glas-rand);background:var(--glas);color:#fff;font-size:1.3rem;font-weight:800;backdrop-filter:blur(8px);display:grid;place-items:center}
+.rund:hover{background:rgba(30,45,65,.85)}
+.kompass svg{width:36px;height:36px;overflow:visible}
+#kompassNadel{transform-origin:20px 20px;transition:transform .05s linear}
+.laden.leicht{inset:auto;left:50%;top:50%;transform:translate(-50%,-50%);background:transparent;pointer-events:none}
+.laden.leicht span{display:none}
+
+.rate-box{position:absolute;right:16px;bottom:max(16px,env(safe-area-inset-bottom));width:var(--kb,340px);display:flex;flex-direction:column;gap:8px;opacity:.78;transition:width .2s,opacity .2s}
+.rate-box:hover,.rate-box.fest{opacity:1}
+.rate-box:hover,.rate-box.fest{width:var(--kb-gross,560px)}
+.rate-box:hover .kartenflaeche,.rate-box.fest .kartenflaeche{height:var(--kh-gross,400px)}
+.rate-box .kartenflaeche{width:100%;height:var(--kh,220px);border-radius:12px;border:2px solid rgba(255,255,255,.7);box-shadow:0 8px 24px rgba(0,0,0,.4);transition:height .2s;cursor:crosshair}
+.rate-werkzeuge{display:flex;gap:4px;justify-content:flex-start}
+.rate-werkzeuge button,.zoom-knoepfe button{width:30px;height:30px;border-radius:8px;border:1px solid var(--glas-rand);background:var(--glas);color:#fff;font-weight:800;padding:0}
+.zoom-knoepfe{position:absolute;right:8px;top:46px;display:flex;flex-direction:column;gap:4px}
+.raten{width:100%;padding:12px;font-size:1.1rem;background:var(--gut);color:#fff;box-shadow:0 6px 16px rgba(0,0,0,.35)}
+.raten:disabled{background:#2c3746;color:#c8d1dc;opacity:1}
+.warten{position:absolute;left:50%;top:max(72px,calc(env(safe-area-inset-top) + 60px));transform:translateX(-50%);background:var(--glas);border:1px solid var(--glas-rand);padding:8px 16px;border-radius:999px;backdrop-filter:blur(8px)}
+.nur-handy{display:none !important}
+.karte-auf{position:absolute;right:16px;bottom:max(16px,env(safe-area-inset-bottom));padding:14px 18px;font-size:1.1rem;background:var(--gut);color:#fff;box-shadow:0 6px 16px rgba(0,0,0,.35)}
+
+/* ---------- Ergebnis ---------- */
+.ergebnis{display:none;overflow:hidden}
+.ergebnis.aktiv{display:flex;flex-direction:column}
+.ergebnis > .kartenflaeche{flex:1;min-height:0;width:100%;display:block}
+.ergebnis-karte{background:var(--flaeche);border-top:1px solid var(--rand);padding:16px 16px max(16px,env(safe-area-inset-bottom));box-shadow:0 -8px 24px rgba(0,0,0,.12);max-height:55vh;overflow:auto}
+.erg-innen{max-width:880px;margin:0 auto;display:grid;gap:12px}
+.erg-kopf{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 16px}
+.erg-kopf h2{font-size:1.6rem}
+.erg-zahlen{display:flex;gap:24px;flex-wrap:wrap}
+.zahl b{display:block;font-size:1.8rem;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.zahl span{font-size:.85rem;color:var(--leise)}
+.balken{height:10px;border-radius:999px;background:var(--flaeche2);overflow:hidden;border:1px solid var(--rand)}
+.balken i{display:block;height:100%;background:linear-gradient(90deg,var(--warn),var(--gut));border-radius:999px;transition:width 1s ease-out}
+.land-info{margin:0;color:var(--leise)}
+.land-info .treffer{color:var(--gut)}
+.nachweis{font-size:.8rem;color:var(--leise);margin:0}
+.erg-tabelle{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.erg-tabelle th{font-size:.8rem;color:var(--leise);text-align:left;font-weight:600;padding:4px 6px}
+.erg-tabelle td{padding:6px;border-top:1px solid var(--rand)}
+.erg-tabelle td.r,.erg-tabelle th.r{text-align:right}
+.erg-tabelle tr.du td{font-weight:800}
+.punkt{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.erg-knoepfe{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.erg-knoepfe .leise{font-size:.95rem}
+
+.meldung{position:fixed;left:50%;top:16px;transform:translateX(-50%);z-index:20;background:var(--glas);color:var(--glas-text);padding:10px 16px;border-radius:12px;border:1px solid var(--glas-rand);backdrop-filter:blur(8px);max-width:calc(100% - 32px)}
+
+/* ---------- Handy ---------- */
+@media (max-width:700px), (max-height:520px){
+  .nur-handy{display:grid !important}
+  .karte-auf.nur-handy{display:block !important}
+  .rate-box{display:none;inset:0;width:auto;right:0;bottom:0;padding:max(12px,env(safe-area-inset-top)) 12px max(12px,env(safe-area-inset-bottom));background:rgba(8,14,24,.92);opacity:1;z-index:4}
+  .rate-box.offen{display:flex}
+  .rate-box:hover,.rate-box.fest{width:auto}
+  .rate-box .kartenflaeche,.rate-box:hover .kartenflaeche,.rate-box.fest .kartenflaeche{flex:1;height:auto}
+  .rate-werkzeuge{justify-content:flex-end}
+  .rate-werkzeuge [data-groesse]{display:none}
+  .zoom-knoepfe{right:20px;top:max(60px,calc(env(safe-area-inset-top) + 50px))}
+  .pille{min-width:62px;padding:4px 10px}
+  .pille b{font-size:1.05rem}
+  .hud-links{top:auto;bottom:max(80px,calc(env(safe-area-inset-bottom) + 70px));left:auto;right:12px}
+  .ergebnis-karte{max-height:60vh}
+  .zahl b{font-size:1.45rem}
+}

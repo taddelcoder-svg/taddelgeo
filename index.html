@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0f1b2b">
+<title>Weltenbummler</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/spiel.css">
+</head>
+<body>
+
+<!-- Panorama (immer im Hintergrund, während einer Runde sichtbar) -->
+<div id="pano" aria-label="360-Grad-Panorama – ziehen zum Umsehen">
+  <canvas id="panoFlaeche"></canvas>
+  <div id="laden" class="laden" hidden><div class="kreisel"></div><span>Panorama lädt …</span></div>
+</div>
+
+<!-- Startseite -->
+<section id="start" class="schirm aktiv">
+  <div class="start-innen">
+    <header class="kopf">
+      <svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="28" fill="#1f6fd1"/><path d="M14 22c6 2 9-3 14 0s4 9 10 8 8-7 13-5M10 36c7-2 10 4 16 3s7-7 13-6 9 7 15 5M18 50c5-3 9 1 14-1s7-5 12-4" stroke="#8fe39b" stroke-width="5" fill="none" stroke-linecap="round"/><circle cx="32" cy="32" r="28" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="2"/></svg>
+      <div>
+        <h1>Weltenbummler</h1>
+        <p class="unterzeile">Du stehst irgendwo auf der Welt. Schau dich um – und tipp auf der Karte, wo du bist.</p>
+      </div>
+    </header>
+
+    <label class="feld">
+      <span>Dein Name</span>
+      <input id="name" maxlength="16" autocomplete="nickname" placeholder="z. B. Matteo">
+    </label>
+
+    <div class="karten-reihe">
+      <div class="modus">
+        <h2>Allein spielen</h2>
+        <div class="einst" id="soloEinst"></div>
+        <button id="soloStart" class="knopf gross">Los geht’s</button>
+      </div>
+      <div class="modus">
+        <h2>Mit Freunden</h2>
+        <p class="leise">Alle sehen denselben Ort und raten gleichzeitig. Wer am nächsten dran ist, bekommt die meisten Punkte.</p>
+        <button id="partyNeu" class="knopf gross">Raum erstellen</button>
+        <div class="oder"><span>oder mit Code beitreten</span></div>
+        <form id="beitretenForm" class="zeile">
+          <input id="code" maxlength="4" placeholder="CODE" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Raum-Code">
+          <button class="knopf">Beitreten</button>
+        </form>
+      </div>
+    </div>
+    <p id="startFehler" class="fehler" role="alert" hidden></p>
+    <footer class="fuss"><a href="/bildnachweise">Bildnachweise</a> · <a href="/datenschutz">Datenschutz</a> · <span id="ortAnzahl"></span></footer>
+  </div>
+</section>
+
+<!-- Warteraum -->
+<section id="lobby" class="schirm">
+  <div class="start-innen">
+    <button class="zurueck" data-menue>← Hauptmenü</button>
+    <p class="leise">Raum-Code</p>
+    <div class="code-gross" id="lobbyCode">----</div>
+    <div class="zeile teilen">
+      <input id="lobbyLink" readonly aria-label="Einladungslink">
+      <button id="linkKopieren" class="knopf zweit">Link kopieren</button>
+    </div>
+    <h2>Spieler</h2>
+    <ul id="lobbySpieler" class="spielerliste"></ul>
+    <h2>Einstellungen</h2>
+    <div class="einst" id="partyEinst"></div>
+    <p id="lobbyHinweis" class="leise"></p>
+    <button id="partyStart" class="knopf gross">Spiel starten</button>
+  </div>
+</section>
+
+<!-- HUD während einer Runde -->
+<div id="hud" hidden>
+  <div class="hud-oben">
+    <div class="pille"><span class="klein">Runde</span><b id="hudRunde">1/5</b></div>
+    <div class="pille" id="hudZeitBox" hidden><span class="klein">Zeit</span><b id="hudZeit">1:00</b></div>
+    <div class="pille"><span class="klein">Punkte</span><b id="hudPunkte">0</b></div>
+  </div>
+  <div class="hud-links">
+    <ul id="hudSpieler" class="mitspieler"></ul>
+  </div>
+  <div class="hud-knoepfe">
+    <button id="kompass" class="rund kompass" title="Nach Norden schauen" aria-label="Kompass – nach Norden schauen"><svg viewBox="0 0 40 40" aria-hidden="true"><g id="kompassNadel"><path d="M20 5 L25 20 L15 20 Z" fill="#e8472b"/><path d="M20 35 L25 20 L15 20 Z" fill="#f2f6fb"/><text x="20" y="4.5" text-anchor="middle" font-size="7" font-weight="800" fill="#f2f6fb">N</text></g></svg></button>
+    <button id="blickZurueck" class="rund" title="Zurück zum Start" aria-label="Zurück zum Startpunkt">⟲</button>
+    <button id="panoPlus" class="rund" aria-label="Hineinzoomen">+</button>
+    <button id="panoMinus" class="rund" aria-label="Herauszoomen">−</button>
+    <button id="verlassen" class="rund" title="Spiel verlassen" aria-label="Spiel verlassen">✕</button>
+  </div>
+  <div id="rateBox" class="rate-box">
+    <div class="rate-werkzeuge">
+      <button data-groesse="-1" aria-label="Karte kleiner">↘</button>
+      <button data-groesse="1" aria-label="Karte größer">↖</button>
+      <button id="kKarteZu" class="nur-handy" aria-label="Karte schließen">✕</button>
+    </div>
+    <canvas id="minikarte" class="kartenflaeche"></canvas>
+    <div class="zoom-knoepfe"><button data-kzoom="2" aria-label="Karte hineinzoomen">+</button><button data-kzoom="0.5" aria-label="Karte herauszoomen">−</button></div>
+    <button id="raten" class="knopf raten" disabled>Setz deinen Tipp auf die Karte</button>
+  </div>
+  <button id="karteAuf" class="knopf karte-auf nur-handy">🗺️ Karte</button>
+  <div id="wartenBox" class="warten" hidden>Tipp abgegeben – warte auf die anderen …</div>
+</div>
+
+<!-- Auflösung einer Runde und Endergebnis -->
+<section id="ergebnis" class="schirm ergebnis">
+  <canvas id="grosskarte" class="kartenflaeche"></canvas>
+  <div class="ergebnis-karte" id="ergebnisKarte"></div>
+</section>
+
+<div id="meldung" class="meldung" role="status" hidden></div>
+
+<script src="/vendor/three.min.js"></script>
+<script src="/karte.js"></script>
+<script src="/spiel.js"></script>
+</body>
+</html>

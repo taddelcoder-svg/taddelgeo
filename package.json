@@ -1,0 +1,19 @@
+{
+  "name": "weltenbummler",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Weltenbummler – Wo auf der Welt bist du? Rate den Ort eines 360°-Panoramas, allein oder mit Freunden.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "strecken": "node werkzeug/strecken-bauen.js",
+    "karte": "node werkzeug/karte-bauen.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ws": "^8.22.0",
+    "sharp": "^0.34.0"
+  }
+}

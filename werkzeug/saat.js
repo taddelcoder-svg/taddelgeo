@@ -1,0 +1,73 @@
+'use strict';
+// Startpunkte über die ganze Welt verteilt: [Bezeichnung, Breite, Länge]
+const SAAT = [
+  // Europa
+  ['Island Süd', 63.9, -21.0], ['Island Nord', 65.7, -18.1], ['Norwegen Fjord', 61.2, 6.9], ['Norwegen Nord', 69.6, 18.9],
+  ['Schweden Mitte', 59.3, 15.2], ['Schweden Nord', 65.6, 22.1], ['Finnland', 61.5, 23.8], ['Finnland Ost', 62.6, 29.7],
+  ['Dänemark', 56.1, 9.5], ['Estland', 58.4, 26.7], ['Lettland', 56.9, 24.1], ['Litauen', 54.9, 23.9],
+  ['Polen West', 52.4, 16.9], ['Polen Süd', 50.0, 19.9], ['Polen Nord', 54.3, 18.6], ['Tschechien', 49.2, 16.6],
+  ['Slowakei', 48.7, 21.2], ['Ungarn', 47.5, 19.0], ['Ungarn Süd', 46.3, 20.1], ['Rumänien', 46.8, 23.6],
+  ['Rumänien Ost', 44.4, 26.1], ['Bulgarien', 42.7, 23.3], ['Bulgarien Küste', 43.2, 27.9], ['Serbien', 44.8, 20.5],
+  ['Kroatien Küste', 43.5, 16.4], ['Slowenien', 46.1, 14.5], ['Bosnien', 43.9, 18.4], ['Montenegro', 42.4, 19.3],
+  ['Albanien', 41.3, 19.8], ['Nordmazedonien', 41.9, 21.4], ['Griechenland', 37.9, 23.7], ['Griechenland Nord', 40.6, 22.9],
+  ['Kreta', 35.3, 25.1], ['Italien Nord', 45.5, 9.2], ['Italien Mitte', 43.8, 11.3], ['Italien Süd', 40.9, 14.3],
+  ['Sizilien', 37.5, 14.0], ['Sardinien', 40.1, 9.0], ['Spanien Mitte', 40.4, -3.7], ['Spanien Süd', 37.4, -5.9],
+  ['Spanien Nord', 43.3, -2.9], ['Katalonien', 41.6, 1.8], ['Portugal', 39.6, -8.4], ['Portugal Süd', 37.1, -8.2],
+  ['Frankreich Paris', 48.9, 2.4], ['Bretagne', 48.1, -3.0], ['Provence', 43.7, 5.4], ['Frankreich Mitte', 45.8, 3.1],
+  ['Elsass', 48.5, 7.6], ['Belgien', 50.8, 4.4], ['Niederlande', 52.1, 5.1], ['Luxemburg', 49.7, 6.1],
+  ['Schweiz', 46.8, 8.2], ['Österreich', 47.3, 13.3], ['Wien', 48.2, 16.4], ['Bayern', 48.1, 11.6],
+  ['Deutschland Nord', 53.6, 10.0], ['Berlin', 52.5, 13.4], ['Ruhrgebiet', 51.5, 7.2], ['Sachsen', 51.1, 13.7],
+  ['Schwarzwald', 48.0, 8.1], ['England Süd', 51.3, -0.8], ['England Nord', 54.0, -2.5], ['Schottland', 56.8, -4.5],
+  ['Wales', 52.4, -3.6], ['Irland', 53.3, -7.8], ['Irland West', 52.9, -9.3], ['Nordirland', 54.6, -6.2],
+  ['Ukraine', 50.4, 30.5], ['Ukraine West', 49.8, 24.0], ['Moldau', 47.0, 28.8], ['Belarus', 53.9, 27.6],
+  ['Russland Moskau', 55.8, 37.6], ['Russland Wolga', 55.8, 49.1], ['Russland Nordwest', 59.9, 30.3], ['Zypern', 34.9, 33.3],
+  ['Malta', 35.9, 14.4], ['Färöer', 62.0, -6.8],
+  // Asien
+  ['Türkei West', 38.4, 27.1], ['Türkei Mitte', 39.9, 32.9], ['Türkei Ost', 38.5, 43.4], ['Georgien', 41.7, 44.8],
+  ['Armenien', 40.2, 44.5], ['Israel', 32.1, 34.8], ['Jordanien', 31.9, 35.9], ['Vereinigte Arabische Emirate', 25.2, 55.3],
+  ['Oman', 23.6, 58.4], ['Kasachstan', 43.2, 76.9], ['Kirgistan', 42.9, 74.6], ['Usbekistan', 41.3, 69.3],
+  ['Mongolei', 47.9, 106.9], ['Russland Sibirien', 55.0, 82.9], ['Baikal', 52.3, 104.3], ['Wladiwostok', 43.1, 131.9],
+  ['Japan Tokio', 35.7, 139.7], ['Japan Kansai', 34.7, 135.5], ['Japan Hokkaido', 43.1, 141.4], ['Japan Kyushu', 33.6, 130.4],
+  ['Japan Tohoku', 38.3, 140.9], ['Südkorea', 37.6, 127.0], ['Südkorea Süd', 35.2, 129.1], ['Taiwan', 25.0, 121.5],
+  ['Taiwan Süd', 22.7, 120.3], ['Hongkong', 22.3, 114.2], ['China Peking', 39.9, 116.4], ['China Shanghai', 31.2, 121.5],
+  ['China Chengdu', 30.7, 104.1], ['Philippinen', 14.6, 121.0], ['Philippinen Cebu', 10.3, 123.9], ['Vietnam Nord', 21.0, 105.8],
+  ['Vietnam Süd', 10.8, 106.7], ['Thailand', 13.8, 100.5], ['Thailand Nord', 18.8, 99.0], ['Kambodscha', 11.6, 104.9],
+  ['Laos', 17.97, 102.6], ['Malaysia', 3.1, 101.7], ['Singapur', 1.35, 103.8], ['Indonesien Java', -6.9, 107.6],
+  ['Bali', -8.5, 115.2], ['Sumatra', 3.6, 98.7], ['Indien Delhi', 28.6, 77.2], ['Indien Mumbai', 19.1, 72.9],
+  ['Indien Süd', 12.97, 77.6], ['Indien Kerala', 10.0, 76.3], ['Sri Lanka', 6.9, 79.9], ['Nepal', 27.7, 85.3],
+  ['Bangladesch', 23.8, 90.4], ['Bhutan', 27.5, 89.6],
+  // Afrika
+  ['Marokko', 33.6, -7.6], ['Marokko Süd', 30.4, -9.6], ['Tunesien', 36.8, 10.2], ['Ägypten', 30.0, 31.2],
+  ['Senegal', 14.7, -17.4], ['Ghana', 5.6, -0.2], ['Nigeria', 6.5, 3.4], ['Kenia', -1.3, 36.8],
+  ['Kenia Küste', -4.0, 39.7], ['Uganda', 0.3, 32.6], ['Ruanda', -1.95, 30.1], ['Tansania', -6.8, 39.3],
+  ['Äthiopien', 9.0, 38.8], ['Südafrika Kap', -33.9, 18.4], ['Südafrika Johannesburg', -26.2, 28.0], ['Südafrika Durban', -29.9, 31.0],
+  ['Namibia', -22.6, 17.1], ['Botswana', -24.7, 25.9], ['Madagaskar', -18.9, 47.5], ['Mauritius', -20.2, 57.5],
+  ['Lesotho', -29.3, 27.5], ['Eswatini', -26.3, 31.1], ['Réunion', -21.1, 55.5],
+  // Nordamerika
+  ['Kanada Vancouver', 49.3, -123.1], ['Kanada Rocky Mountains', 51.2, -115.6], ['Kanada Prärie', 50.4, -104.6], ['Kanada Toronto', 43.7, -79.4],
+  ['Kanada Québec', 46.8, -71.2], ['Kanada Neuschottland', 44.6, -63.6], ['Alaska', 61.2, -149.9], ['USA Seattle', 47.6, -122.3],
+  ['USA Oregon', 44.0, -123.0], ['USA Kalifornien Nord', 37.8, -122.3], ['USA Los Angeles', 34.1, -118.2], ['USA Nevada', 36.2, -115.2],
+  ['USA Arizona', 33.4, -112.1], ['USA Utah', 40.8, -111.9], ['USA Colorado', 39.7, -105.0], ['USA Montana', 46.9, -114.0],
+  ['USA Texas', 30.3, -97.7], ['USA Texas West', 31.8, -106.4], ['USA Oklahoma', 35.5, -97.5], ['USA Kansas', 38.0, -97.3],
+  ['USA Iowa', 41.6, -93.6], ['USA Minnesota', 44.98, -93.3], ['USA Chicago', 41.9, -87.6], ['USA Michigan', 42.3, -83.0],
+  ['USA Ohio', 40.0, -83.0], ['USA Tennessee', 36.2, -86.8], ['USA Georgia', 33.7, -84.4], ['USA Florida', 28.5, -81.4],
+  ['USA Florida Süd', 25.8, -80.2], ['USA Louisiana', 30.0, -90.1], ['USA Carolina', 35.8, -78.6], ['USA Virginia', 37.5, -77.4],
+  ['USA New York', 40.7, -74.0], ['USA Neuengland', 42.4, -71.1], ['USA Maine', 44.3, -69.8], ['USA Pennsylvania', 40.4, -80.0],
+  ['Hawaii', 21.3, -157.9], ['Mexiko Stadt', 19.4, -99.1], ['Mexiko Guadalajara', 20.7, -103.3], ['Mexiko Nord', 25.7, -100.3],
+  ['Yucatán', 20.97, -89.6], ['Guatemala', 14.6, -90.5], ['Costa Rica', 9.9, -84.1], ['Panama', 9.0, -79.5],
+  ['Puerto Rico', 18.4, -66.1], ['Dominikanische Republik', 18.5, -69.9], ['Kuba', 23.1, -82.4],
+  // Südamerika
+  ['Kolumbien', 4.7, -74.1], ['Kolumbien Medellín', 6.2, -75.6], ['Ecuador', -0.2, -78.5], ['Peru Lima', -12.0, -77.0],
+  ['Peru Cusco', -13.5, -72.0], ['Bolivien', -16.5, -68.1], ['Chile Santiago', -33.4, -70.6], ['Chile Süd', -41.5, -72.9],
+  ['Chile Nord', -23.6, -70.4], ['Argentinien Buenos Aires', -34.6, -58.4], ['Argentinien Mendoza', -32.9, -68.8], ['Patagonien', -41.1, -71.3],
+  ['Argentinien Córdoba', -31.4, -64.2], ['Uruguay', -34.9, -56.2], ['Paraguay', -25.3, -57.6], ['Brasilien São Paulo', -23.5, -46.6],
+  ['Brasilien Rio', -22.9, -43.2], ['Brasilien Süd', -30.0, -51.2], ['Brasilien Nordost', -8.1, -34.9], ['Brasilien Brasília', -15.8, -47.9],
+  ['Brasilien Minas', -19.9, -43.9], ['Brasilien Amazonas', -3.1, -60.0], ['Venezuela', 10.5, -66.9],
+  // Ozeanien
+  ['Australien Sydney', -33.9, 151.2], ['Australien Melbourne', -37.8, 145.0], ['Australien Brisbane', -27.5, 153.0], ['Australien Perth', -31.95, 115.9],
+  ['Australien Adelaide', -34.9, 138.6], ['Australien Outback', -23.7, 133.9], ['Australien Cairns', -16.9, 145.8], ['Tasmanien', -42.9, 147.3],
+  ['Neuseeland Auckland', -36.85, 174.8], ['Neuseeland Wellington', -41.3, 174.8], ['Neuseeland Süd', -43.5, 172.6], ['Neuseeland Queenstown', -45.0, 168.7],
+  ['Fidschi', -18.1, 178.4], ['Neukaledonien', -22.3, 166.5], ['Grönland', 64.2, -51.7]
+];
+
+module.exports = { SAAT };
