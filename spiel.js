@@ -488,6 +488,8 @@
   for (const b of $$('[data-kzoom]')) b.onclick = () => minikarte && minikarte.zoomen(Number(b.dataset.kzoom));
   $('#karteAuf').onclick = () => { $('#rateBox').classList.add('offen'); minikarte && minikarte.groesse(); };
   $('#kKarteZu').onclick = () => $('#rateBox').classList.remove('offen');
+  $('#kZuTipp').onclick = () => { if (minikarte && z.tipp) minikarte.zu(z.tipp.lat, z.tipp.lon, 5); };
+  $('#kWelt').onclick = () => minikarte && minikarte.ganzeWelt(false);
   $('#blickZurueck').onclick = () => pano.zumStart();
   $('#kompass').onclick = () => pano.norden();
   $('#panoPlus').onclick = () => pano.zoom(1 / 1.25);
@@ -508,15 +510,21 @@
     kartenGroesse();
     $('#rateBox').classList.remove('offen');
     if (!minikarte){
-      minikarte = new Karte($('#minikarte'), { onKlick:(lat, lon) => {
+      minikarte = new Karte($('#minikarte'), { ziehbar:true, onKlick:(lat, lon) => {
         if (z.abgegeben) return;
         z.tipp = { lat, lon };
-        minikarte.setzen([{ lat, lon, farbe:FARBEN[0] }]);
+        minikarte.setzen([{ lat, lon, farbe:FARBEN[0], eigene:true }]);
+        $('#kZuTipp').hidden = false;
+        $('#kartenHinweis').textContent = 'Nadel ziehen oder neu tippen zum Korrigieren';
+        $('#karteAuf').textContent = '🗺️ Tipp ändern';
         const b = $('#raten'); b.disabled = false; b.textContent = 'Raten';
       } });
     } else minikarte.groesse();
     minikarte.setzen([]);
     minikarte.ganzeWelt(true);
+    $('#kZuTipp').hidden = true;
+    $('#kartenHinweis').textContent = 'Tippe auf die Karte, um deinen Tipp zu setzen';
+    $('#karteAuf').textContent = '🗺️ Karte';
     const b = $('#raten'); b.disabled = true; b.textContent = z.abgegeben ? 'Tipp abgegeben' : 'Setz deinen Tipp auf die Karte';
     $('#wartenBox').hidden = !z.abgegeben;
     $('#hudRunde').textContent = `${m.nr}/${m.von}`;
@@ -525,7 +533,7 @@
     pano.strecke(m.graph, m.blick, i => senden({ t:'hier', i }));
     if (m.graph.knoten.length > 1 && !speicher.lesen('wb-laufhinweis', false)){
       speicher.schreiben('wb-laufhinweis', true);
-      meldung('Tipp: Klick auf die Pfeile am Boden (oder W/↑), um dich zu bewegen.', 6000);
+      meldung(matchMedia('(pointer: coarse)').matches ? 'Tipp: Tippe auf die Pfeile am Boden, um dich zu bewegen.' : 'Tipp: Klick auf die Pfeile am Boden (oder W/↑), um dich zu bewegen.', 6000);
     }
     // Uhr: die Anzeige endet 1,5 s vor dem Server (Ladepuffer), dann wird ein gesetzter Tipp abgeschickt
     clearInterval(uhrTimer);
@@ -550,6 +558,8 @@
     z.abgegeben = true;
     senden({ t:'tipp', lat:z.tipp.lat, lon:z.tipp.lon });
     const b = $('#raten'); b.disabled = true; b.textContent = 'Tipp abgegeben';
+    $('#rateBox').classList.remove('offen');
+    $('#karteAuf').textContent = '🗺️ Karte';
     if (z.raum && !z.raum.privat && z.raum.spieler.filter(s => !s.weg).length > 1) $('#wartenBox').hidden = false;
   }
   $('#raten').onclick = raten;

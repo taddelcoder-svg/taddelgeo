@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#0f1b2b">
 <title>Weltenbummler</title>
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/vendor/leaflet.css">
+<link rel="stylesheet" href="/vendor/maplibre-gl.css">
 <link rel="stylesheet" href="/spiel.css">
 </head>
 <body>
@@ -96,10 +96,11 @@
     <div class="rate-werkzeuge">
       <button data-groesse="-1" aria-label="Karte kleiner">↘</button>
       <button data-groesse="1" aria-label="Karte größer">↖</button>
+      <span id="kartenHinweis" class="karten-hinweis nur-handy">Tippe auf die Karte, um deinen Tipp zu setzen</span>
       <button id="kKarteZu" class="nur-handy" aria-label="Karte schließen">✕</button>
     </div>
     <div id="minikarte" class="kartenflaeche"></div>
-    <div class="zoom-knoepfe"><button data-kzoom="2" aria-label="Karte hineinzoomen">+</button><button data-kzoom="0.5" aria-label="Karte herauszoomen">−</button></div>
+    <div class="zoom-knoepfe"><button data-kzoom="2" aria-label="Karte hineinzoomen">+</button><button data-kzoom="0.5" aria-label="Karte herauszoomen">−</button><button id="kZuTipp" title="Zu meinem Tipp" aria-label="Zu meinem Tipp" hidden>📍</button><button id="kWelt" title="Ganze Welt" aria-label="Ganze Welt zeigen">🌍</button></div>
     <button id="raten" class="knopf raten" disabled>Setz deinen Tipp auf die Karte</button>
   </div>
   <button id="karteAuf" class="knopf karte-auf nur-handy">🗺️ Karte</button>
@@ -115,7 +116,7 @@
 <div id="meldung" class="meldung" role="status" hidden></div>
 
 <script src="/vendor/three.min.js"></script>
-<script src="/vendor/leaflet.js"></script>
+<script src="/vendor/maplibre-gl.js"></script>
 <script src="/karte.js"></script>
 <script src="/spiel.js"></script>
 </body>

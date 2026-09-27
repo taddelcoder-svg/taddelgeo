@@ -160,7 +160,12 @@ input:focus-visible{border-color:var(--akzent);box-shadow:0 0 0 3px color-mix(in
   .rate-box .kartenflaeche,.rate-box:hover .kartenflaeche,.rate-box.fest .kartenflaeche{flex:1;height:auto}
   .rate-werkzeuge{justify-content:flex-end}
   .rate-werkzeuge [data-groesse]{display:none}
-  .zoom-knoepfe{right:20px;top:max(60px,calc(env(safe-area-inset-top) + 50px))}
+  .rate-werkzeuge{align-items:center;min-height:44px}
+  .rate-werkzeuge #kKarteZu{width:44px;height:44px;font-size:1.2rem;border-radius:12px}
+  .zoom-knoepfe{right:22px;top:max(70px,calc(env(safe-area-inset-top) + 62px));gap:8px}
+  .zoom-knoepfe button{width:46px;height:46px;border-radius:12px;font-size:1.35rem}
+  .raten{padding:16px;font-size:1.2rem}
+  .karten-hinweis{display:block !important}
   .pille{min-width:62px;padding:4px 10px}
   .pille b{font-size:1.05rem}
   .hud-links{top:auto;bottom:max(80px,calc(env(safe-area-inset-bottom) + 70px));left:auto;right:12px}
@@ -168,11 +173,13 @@ input:focus-visible{border-color:var(--akzent);box-shadow:0 0 0 3px color-mix(in
   .zahl b{font-size:1.45rem}
 }
 
-/* ---------- Karte (Leaflet) ---------- */
-.kartenflaeche.leaflet-container{background:#aad3df;font:inherit}
-.rate-box .leaflet-container{cursor:crosshair}
-.rate-box .leaflet-dragging .leaflet-container,.rate-box .leaflet-container.leaflet-drag-target{cursor:grabbing}
-.karten-nadel{background:none;border:0}
+/* ---------- Karte (MapLibre) ---------- */
+.kartenflaeche{background:#e8e4da}
+.rate-box .maplibregl-canvas-container{cursor:crosshair}
+.rate-box .maplibregl-canvas-container:active{cursor:grabbing}
+.karten-nadel{cursor:grab;touch-action:none}
 .karten-nadel svg{display:block;filter:drop-shadow(0 2px 3px rgba(0,0,0,.4))}
-.leaflet-control-attribution{font-size:11px;font-family:system-ui,sans-serif}
-.zoom-knoepfe{z-index:500}
+.maplibregl-ctrl-attrib{font:11px/1.4 system-ui,sans-serif}
+.zoom-knoepfe{z-index:5}
+.zoom-knoepfe button[hidden]{display:none}
+.karten-hinweis{flex:1;align-self:center;color:#f2f6fb;font-size:.95rem;line-height:1.2;padding-right:8px}

@@ -1,72 +1,124 @@
 'use strict';
-// Weltkarte zum Raten: Leaflet mit OpenStreetMap-Kacheln. Die Kacheln kommen über den
-// eigenen Server (/kacheln/…), der sie bei OpenStreetMap holt und zwischenspeichert –
-// der Browser der Spieler verbindet sich also nie mit fremden Diensten.
+// Weltkarte zum Raten: MapLibre (Vektorkarte) mit OpenFreeMap-Daten. Alles kommt über den
+// eigenen Server (/vkarte/…, /kartenstil.json). Beschriftungen sind vereinheitlicht:
+// deutscher Name, sonst lateinische Schreibweise (siehe werkzeug/kartenstil-bauen.js).
 (function(){
-  const NACHWEIS = '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende';
+  let stilLaden = null;
+  function stil(){
+    // Pfade im Stil sind relativ – MapLibre braucht volle Adressen
+    stilLaden = stilLaden || fetch('/kartenstil.json').then(r => r.json()).then(s => {
+      const o = location.origin;
+      for (const q of Object.values(s.sources)) if (q.tiles) q.tiles = q.tiles.map(t => o + t);
+      s.glyphs = o + s.glyphs; s.sprite = o + s.sprite;
+      return s;
+    });
+    return stilLaden;
+  }
 
   const escHtml = t => String(t).replace(/[&<>"']/g, z => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[z]));
-  function nadelIcon(farbe, text){
+  function nadelElement(farbe, text){
+    const el = document.createElement('div');
+    el.className = 'karten-nadel';
     const innen = text
       ? `<text x="14" y="15.5" text-anchor="middle" font-size="10" font-weight="800" fill="#fff" font-family="Barlow SC, system-ui, sans-serif">${escHtml(text.slice(0, 2).toUpperCase())}</text>`
       : '<circle cx="14" cy="12" r="4.2" fill="#fff"/>';
-    return L.divIcon({
-      className:'karten-nadel', iconSize:[28, 38], iconAnchor:[14, 37],
-      html:`<svg viewBox="0 0 28 38" width="28" height="38" aria-hidden="true"><path d="M14 37C14 37 2 22 2 13a12 12 0 0 1 24 0c0 9-12 24-12 24z" fill="${farbe}" stroke="#fff" stroke-width="2.5"/>${innen}</svg>`
-    });
+    el.innerHTML = `<svg viewBox="0 0 28 38" width="28" height="38" aria-hidden="true"><path d="M14 37C14 37 2 22 2 13a12 12 0 0 1 24 0c0 9-12 24-12 24z" fill="${farbe}" stroke="#fff" stroke-width="2.5"/>${innen}</svg>`;
+    return el;
   }
-  const flaggeIcon = L.divIcon({
-    className:'karten-nadel', iconSize:[30, 40], iconAnchor:[4, 38],
-    html:'<svg viewBox="0 0 30 40" width="30" height="40" aria-hidden="true"><circle cx="4" cy="36" r="3.5" fill="#16202c" stroke="#fff" stroke-width="1.5"/><path d="M4 36V3" stroke="#16202c" stroke-width="2.5"/><path d="M5 3l22 7-22 8z" fill="#20b35a" stroke="#fff" stroke-width="1.5"/></svg>'
-  });
+  function flaggeElement(){
+    const el = document.createElement('div');
+    el.className = 'karten-nadel';
+    el.innerHTML = '<svg viewBox="0 0 30 40" width="30" height="40" aria-hidden="true"><circle cx="4" cy="36" r="3.5" fill="#16202c" stroke="#fff" stroke-width="1.5"/><path d="M4 36V3" stroke="#16202c" stroke-width="2.5"/><path d="M5 3l22 7-22 8z" fill="#20b35a" stroke="#fff" stroke-width="1.5"/></svg>';
+    return el;
+  }
+  const naheLon = (lon, ref) => { while (lon - ref > 180) lon -= 360; while (lon - ref < -180) lon += 360; return lon; };
 
   class Karte {
+    // opt.onKlick(lat, lon): Tipp setzen; opt.ziehbar: eigene Nadel lässt sich verschieben
     constructor(el, opt = {}){
       this.el = el;
       this.onKlick = opt.onKlick || null;
-      this.karte = L.map(el, {
-        zoomControl:false, worldCopyJump:true, minZoom:1, maxZoom:19,
-        zoomSnap:0.25, zoomDelta:1, wheelPxPerZoomLevel:90, attributionControl:true
+      this.ziehbar = !!opt.ziehbar;
+      this.marker = [];
+      this.linien = [];
+      this.bereit = false;
+      this.karte = null;
+      stil().then(s => this.starten(s)).catch(() => { el.textContent = 'Karte konnte nicht geladen werden.'; });
+    }
+    starten(s){
+      const k = this.karte = new maplibregl.Map({
+        container:this.el, style:s, center:[10, 25], zoom:this.weltZoom(),
+        minZoom:0, maxZoom:18, dragRotate:false, pitchWithRotate:false, touchPitch:false,
+        attributionControl:{ compact:true }, renderWorldCopies:true, fadeDuration:150,
+        // Auf dem Handy wackelt der Finger: erst ab 10 px Bewegung zählt es als Verschieben statt Tippen
+        clickTolerance:matchMedia('(pointer: coarse)').matches ? 10 : 3
       });
-      this.karte.attributionControl.setPrefix(false);
-      L.tileLayer('/kacheln/{z}/{x}/{y}.png', { maxZoom:19, attribution:NACHWEIS, crossOrigin:false }).addTo(this.karte);
-      this.ebene = L.layerGroup().addTo(this.karte);
-      this.karte.on('click', e => { if (this.onKlick) this.onKlick(e.latlng.lat, e.latlng.lng); });
-      this.ganzeWelt(true);
-      // Die Kartenbox wächst beim Überfahren – Leaflet muss das mitbekommen
-      new ResizeObserver(() => this.groesse()).observe(el);
+      k.touchZoomRotate.disableRotation();
+      k.keyboard.disableRotation();
+      k.on('click', e => { if (this.onKlick) this.onKlick(e.lngLat.lat, e.lngLat.lng); });
+      // Symbole, die im Stil fehlen, durch ein leeres Bild ersetzen (sonst nur Warnungen)
+      k.on('styleimagemissing', e => { if (!k.hasImage(e.id)) k.addImage(e.id, { width:1, height:1, data:new Uint8Array(4) }); });
+      // Sobald der Stil da ist (nicht erst, wenn alle Kacheln geladen sind), kommen die Linien dazu
+      k.once('style.load', () => {
+        k.addSource('linien', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
+        k.addLayer({ id:'linien', type:'line', source:'linien', paint:{ 'line-color':['get', 'farbe'], 'line-width':3, 'line-dasharray':[2, 1.6], 'line-opacity':0.9 } });
+        this.bereit = true;
+        this.zeichnen();
+      });
+      // Nadeln und Ausschnitt gehen schon vorher
+      this.zeichnen();
+      if (this.warteAuf){ const w = this.warteAuf; this.warteAuf = null; w(); }
+      // Die Kartenbox wächst beim Überfahren bzw. wird auf dem Handy eingeblendet
+      new ResizeObserver(() => k.resize()).observe(this.el);
     }
-    groesse(){ this.karte.invalidateSize({ pan:false }); }
-    zoomen(faktor){ if (faktor > 1) this.karte.zoomIn(); else this.karte.zoomOut(); }
+    weltZoom(){ const b = this.el.clientWidth || 300; return b > 700 ? 1.2 : b > 360 ? 0.6 : 0.2; }
+    groesse(){ if (this.karte) this.karte.resize(); }
+    zoomen(faktor){ if (!this.karte) return; if (faktor > 1) this.karte.zoomIn(); else this.karte.zoomOut(); }
     ganzeWelt(sofort){
-      const b = this.el.clientWidth || 300;
-      this.karte.setView([25, 10], b > 700 ? 2 : b > 360 ? 1.5 : 1, { animate:!sofort });
+      if (!this.karte) return;
+      this.karte[sofort ? 'jumpTo' : 'easeTo']({ center:[10, 25], zoom:this.weltZoom() });
     }
-    // marker: [{lat, lon, art:'ziel'|undefined, farbe, text}], linien: [{von, nach, farbe}]
+    // Zur eigenen Nadel springen (Handy: nach dem Hineinzoomen schnell wiederfinden)
+    zu(lat, lon, zoom){ if (this.karte) this.karte.easeTo({ center:[lon, lat], zoom:Math.max(this.karte.getZoom(), zoom || 0) }); }
+
+    // marker: [{lat, lon, art:'ziel'|undefined, farbe, text, eigene}], linien: [{von, nach, farbe}]
     setzen(marker, linien){
-      this.ebene.clearLayers();
-      // Linien über die Datumsgrenze: Ziel auf die Kopie der Welt legen, die am nächsten liegt
-      for (const li of linien || []){
-        let lon = li.nach.lon;
-        while (lon - li.von.lon > 180) lon -= 360;
-        while (lon - li.von.lon < -180) lon += 360;
-        L.polyline([[li.von.lat, li.von.lon], [li.nach.lat, lon]], { color:li.farbe || '#222', weight:3, dashArray:'8 7', opacity:0.9, interactive:false }).addTo(this.ebene);
+      this.markerDaten = marker || [];
+      this.linienDaten = linien || [];
+      this.zeichnen();
+    }
+    zeichnen(){
+      if (!this.karte) return;
+      this.karte.resize();
+      for (const m of this.marker) m.remove();
+      this.marker = [];
+      for (const m of this.markerDaten || []){
+        const ziel = m.art === 'ziel';
+        const mk = new maplibregl.Marker({
+          element:ziel ? flaggeElement() : nadelElement(m.farbe || '#e8472b', m.text || ''),
+          anchor:ziel ? 'bottom-left' : 'bottom', offset:ziel ? [-4, 2] : [0, 1],
+          draggable:!!(m.eigene && this.ziehbar)
+        }).setLngLat([m.lon, m.lat]).addTo(this.karte);
+        if (m.eigene && this.ziehbar) mk.on('dragend', () => { const p = mk.getLngLat(); if (this.onKlick) this.onKlick(p.lat, p.lng); });
+        if (ziel) mk.getElement().style.zIndex = 5;
+        this.marker.push(mk);
       }
-      for (const m of marker || []){
-        L.marker([m.lat, m.lon], { icon:m.art === 'ziel' ? flaggeIcon : nadelIcon(m.farbe || '#e8472b', m.text || ''), interactive:false, keyboard:false, zIndexOffset:m.art === 'ziel' ? 1000 : 0 }).addTo(this.ebene);
-      }
+      if (!this.bereit) return;
+      // Linien über die Datumsgrenze: Ziel auf die nächstgelegene Kopie der Welt legen
+      this.karte.getSource('linien').setData({ type:'FeatureCollection', features:(this.linienDaten || []).map(li => ({
+        type:'Feature', properties:{ farbe:li.farbe || '#222' },
+        geometry:{ type:'LineString', coordinates:[[li.von.lon, li.von.lat], [naheLon(li.nach.lon, li.von.lon), li.nach.lat]] }
+      })) });
     }
     // Ausschnitt so wählen, dass alle Punkte sichtbar sind
     passend(punkte, rand = 60, sofort = false){
+      if (!this.karte){ this.warteAuf = () => this.passend(punkte, rand, true); return; }
       if (!punkte.length) return this.ganzeWelt(sofort);
       const ref = punkte[0].lon;
-      const ll = punkte.map(p => {
-        let lon = p.lon;
-        while (lon - ref > 180) lon -= 360;
-        while (lon - ref < -180) lon += 360;
-        return [p.lat, lon];
-      });
-      this.karte.fitBounds(L.latLngBounds(ll), { padding:[rand, rand], maxZoom:16, animate:!sofort });
+      const b = new maplibregl.LngLatBounds();
+      for (const p of punkte) b.extend([naheLon(p.lon, ref), p.lat]);
+      const pad = Math.min(rand, this.el.clientWidth / 4, this.el.clientHeight / 4);
+      this.karte.fitBounds(b, { padding:pad, maxZoom:15, duration:sofort ? 0 : 900 });
     }
   }
 

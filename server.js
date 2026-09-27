@@ -7,6 +7,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const zlib = require('zlib');
 const crypto = require('crypto');
 const sharp = require('sharp');
 sharp.cache(false);
@@ -144,9 +145,9 @@ main{max-width:760px;margin:auto}a{color:var(--a)}p,li{color:var(--leise)}li{mar
 (ursprünglich von Mapillary) und stehen unter freien Lizenzen. Eine Strecke besteht aus den Bildern einer Aufnahmefahrt;
 der Link führt zur Sammlung aller Bilder dieser Fahrt. Für das Spiel wurden sie verkleinert.
 Die Reihenfolge hier verrät nicht, welche Strecke im Spiel gerade dran ist.</p>
-<p>Karte: © <a href="https://www.openstreetmap.org/copyright" rel="noopener" target="_blank">OpenStreetMap</a>-Mitwirkende (Daten unter ODbL, Kacheln von openstreetmap.org).
+<p>Karte: <a href="https://openfreemap.org" rel="noopener" target="_blank">OpenFreeMap</a> © <a href="https://www.openmaptiles.org/" rel="noopener" target="_blank">OpenMapTiles</a>, Daten © <a href="https://www.openstreetmap.org/copyright" rel="noopener" target="_blank">OpenStreetMap</a>-Mitwirkende (ODbL). Beschriftungen für das Spiel vereinheitlicht (deutsche bzw. lateinische Namen).
 Ländergrenzen für die Auswertung: <a href="https://www.naturalearthdata.com" rel="noopener" target="_blank">Natural Earth</a> (gemeinfrei).
-Kartenanzeige: Leaflet (BSD-Lizenz).
+Kartenanzeige: MapLibre GL JS (BSD-Lizenz).
 3D-Anzeige: three.js (MIT-Lizenz). Schrift: Barlow Semi Condensed (SIL Open Font License).</p>
 <ol>${zeilen}</ol>
 <p><a href="/">Zurück zum Spiel</a> · <a href="/datenschutz">Datenschutz</a></p>
@@ -222,56 +223,101 @@ function panoSenden(res, id){
     res.writeHead(502, { 'Content-Type':'text/plain; charset=utf-8' }); res.end('Panorama gerade nicht verfügbar');
   });
 }
-/* ---------- Kartenkacheln von OpenStreetMap, über diesen Server ---------- */
-// Nach der Nutzungsrichtlinie von tile.openstreetmap.org: erkennbarer User-Agent, mindestens
-// 7 Tage zwischenspeichern, nur Kacheln holen, die gerade jemand ansieht (kein Vorladen).
+/* ---------- Vektorkarte von OpenFreeMap, über diesen Server ---------- */
+// Kacheln, Schriften, Symbole und Reliefbilder werden bei OpenFreeMap geholt und hier
+// zwischengespeichert; der Browser der Spieler spricht nur mit diesem Server.
+// Holen nur, was gerade jemand ansieht (kein Vorladen).
+const OFM = 'https://tiles.openfreemap.org';
+const KARTE_CACHE = path.join(ZWISCHEN, 'vkarte');
 const KACHEL_ALTER = 7 * 24 * 3600 * 1000;
-const KACHELN = path.join(ZWISCHEN, 'kacheln');
-const kachelnUnterwegs = new Map();
-let kachelnLaufend = 0;
-const kachelSchlange = [];
-function kachelNaechste(){
-  while (kachelnLaufend < 3 && kachelSchlange.length){ kachelnLaufend++; kachelSchlange.shift()(); }
+let kachelVorlage = null, vorlageZeit = 0;
+// Die Kachel-Adresse enthält einen Datenstand; er steht im TileJSON und wird täglich neu gelesen
+async function kachelAdresse(z, x, y){
+  if (!kachelVorlage || Date.now() - vorlageZeit > 24 * 3600 * 1000){
+    const r = await fetch(`${OFM}/planet`, { headers:UA, signal:AbortSignal.timeout(15_000) });
+    if (!r.ok) throw new Error('TileJSON HTTP ' + r.status);
+    kachelVorlage = (await r.json()).tiles[0];
+    vorlageZeit = Date.now();
+  }
+  return kachelVorlage.replace('{z}', z).replace('{x}', x).replace('{y}', y);
 }
-function kachelHolen(z, x, y, ziel){
-  const schluessel = `${z}/${x}/${y}`;
-  if (kachelnUnterwegs.has(schluessel)) return kachelnUnterwegs.get(schluessel);
-  const p = new Promise((ok, fehler) => kachelSchlange.push(async () => {
+const karteUnterwegs = new Map();
+let karteLaufend = 0;
+const karteSchlange = [];
+function karteNaechste(){
+  while (karteLaufend < 4 && karteSchlange.length){ karteLaufend++; karteSchlange.shift()(); }
+}
+function karteHolen(schluessel, adresse){
+  if (karteUnterwegs.has(schluessel)) return karteUnterwegs.get(schluessel);
+  const ziel = path.join(KARTE_CACHE, schluessel);
+  const p = new Promise((ok, fehler) => karteSchlange.push(async () => {
     try {
-      const r = await fetch(`https://tile.openstreetmap.org/${schluessel}.png`, { headers:UA, signal:AbortSignal.timeout(20_000) });
+      const url = typeof adresse === 'function' ? await adresse() : adresse;
+      const r = await fetch(url, { headers:UA, signal:AbortSignal.timeout(20_000) });
+      if (r.status === 204 || r.status === 404){ ok(Buffer.alloc(0)); return; }   // leere Kachel (z. B. offenes Meer)
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      const daten = Buffer.from(await r.arrayBuffer());
+      // gzip-komprimiert speichern, dann kann es direkt so ausgeliefert werden
+      const daten = zlib.gzipSync(Buffer.from(await r.arrayBuffer()));
       await fs.promises.mkdir(path.dirname(ziel), { recursive:true });
       await fs.promises.writeFile(ziel + '.tmp', daten);
       await fs.promises.rename(ziel + '.tmp', ziel);
       ok(daten);
     } catch (e){ fehler(e); }
-    finally { kachelnLaufend--; kachelnUnterwegs.delete(schluessel); kachelNaechste(); }
+    finally { karteLaufend--; karteUnterwegs.delete(schluessel); karteNaechste(); }
   }));
-  kachelnUnterwegs.set(schluessel, p);
-  kachelNaechste();
+  karteUnterwegs.set(schluessel, p);
+  karteNaechste();
   return p;
 }
-function kachelSenden(res, z, x, y){
-  const n = 2 ** z;
-  if (z > 19 || x >= n || y >= n){ res.writeHead(404); return res.end(); }
-  const ziel = path.join(KACHELN, String(z), String(x), y + '.png');
+// Beim Start die Weltansicht (Zoom 0–3, 85 Kacheln) einmal holen, damit die erste Karte schnell da ist
+setTimeout(async () => {
+  for (let z = 0; z <= 3; z++) for (let x = 0; x < 2 ** z; x++) for (let y = 0; y < 2 ** z; y++){
+    const schluessel = `tiles/${z}/${x}/${y}.pbf.gz`;
+    if (fs.existsSync(path.join(KARTE_CACHE, schluessel))) continue;
+    await karteHolen(schluessel, () => kachelAdresse(z, x, y)).catch(() => {});
+  }
+}, 2000).unref();
+const KARTEN_TYPEN = { pbf:'application/x-protobuf', png:'image/png', json:'application/json' };
+function karteSenden(req, res, pfad){
+  let m, schluessel, adresse, alter = Infinity;
+  if ((m = /^tiles\/(\d{1,2})\/(\d{1,5})\/(\d{1,5})\.pbf$/.exec(pfad))){
+    const [z, x, y] = [+m[1], +m[2], +m[3]];
+    if (z > 14 || x >= 2 ** z || y >= 2 ** z) return nichtDa();
+    schluessel = `tiles/${z}/${x}/${y}.pbf.gz`; adresse = () => kachelAdresse(z, x, y); alter = KACHEL_ALTER;
+  } else if ((m = /^ne2sr\/(\d)\/(\d{1,2})\/(\d{1,2})\.png$/.exec(pfad))){
+    const [z, x, y] = [+m[1], +m[2], +m[3]];
+    if (z > 6 || x >= 2 ** z || y >= 2 ** z) return nichtDa();
+    schluessel = `ne2sr/${z}/${x}/${y}.png.gz`; adresse = `${OFM}/natural_earth/ne2sr/${z}/${x}/${y}.png`;
+  } else if ((m = /^fonts\/(Noto%20Sans%20(?:Regular|Bold|Italic))\/(\d{1,5}-\d{1,5})\.pbf$/.exec(pfad))){
+    schluessel = `fonts/${decodeURIComponent(m[1])}/${m[2]}.pbf.gz`; adresse = `${OFM}/fonts/${m[1]}/${m[2]}.pbf`;
+  } else if ((m = /^sprites\/ofm(@2x)?\.(json|png)$/.exec(pfad))){
+    schluessel = `sprites/ofm${m[1] || ''}.${m[2]}.gz`; adresse = `${OFM}/sprites/ofm_f384/ofm${m[1] || ''}.${m[2]}`;
+  } else return nichtDa();
+  const typ = KARTEN_TYPEN[/\.(pbf|png|json)\.gz$/.exec(schluessel)[1]];
+  const gz = /\bgzip\b/.test(req.headers['accept-encoding'] || '');
   const schicken = daten => {
-    res.writeHead(200, { 'Content-Type':'image/png', 'Content-Length':daten.length, 'Cache-Control':'public, max-age=604800' });
-    res.end(daten);
+    if (!daten.length){ res.writeHead(204, { 'Cache-Control':'public, max-age=86400' }); return res.end(); }
+    const body = gz ? daten : zlib.gunzipSync(daten);
+    res.writeHead(200, { 'Content-Type':typ, 'Content-Length':body.length, 'Cache-Control':'public, max-age=604800', 'Vary':'Accept-Encoding', ...(gz ? { 'Content-Encoding':'gzip' } : {}) });
+    res.end(body);
   };
+  const ziel = path.join(KARTE_CACHE, schluessel);
   fs.stat(ziel, (err, st) => {
-    if (!err && Date.now() - st.mtimeMs < KACHEL_ALTER) return fs.readFile(ziel, (e, d) => (e ? kachelHolen(z, x, y, ziel).then(schicken, fehlt) : schicken(d)));
-    kachelHolen(z, x, y, ziel).then(schicken, e => {
-      // Wenn OSM nicht antwortet, lieber eine ältere Kachel zeigen als gar keine
-      if (!err) return fs.readFile(ziel, (e2, d) => (e2 ? fehlt(e) : schicken(d)));
+    if (!err && Date.now() - st.mtimeMs < alter) return fs.readFile(ziel, (e, d) => (e ? holen() : schicken(d)));
+    holen(err);
+  });
+  function holen(alteDaFehler){
+    karteHolen(schluessel, adresse).then(schicken, e => {
+      // Wenn OpenFreeMap nicht antwortet, lieber eine ältere Kopie zeigen als gar nichts
+      if (alteDaFehler === null) return fs.readFile(ziel, (e2, d) => (e2 ? fehlt(e) : schicken(d)));
       fehlt(e);
     });
-  });
-  function fehlt(e){
-    console.warn('Kachel nicht geladen:', z, x, y, e && e.message);
-    res.writeHead(502, { 'Content-Type':'text/plain; charset=utf-8' }); res.end('Kachel gerade nicht verfügbar');
   }
+  function fehlt(e){
+    console.warn('Karte nicht geladen:', pfad, e && e.message);
+    res.writeHead(502, { 'Content-Type':'text/plain; charset=utf-8' }); res.end('Karte gerade nicht verfügbar');
+  }
+  function nichtDa(){ res.writeHead(404, { 'Content-Type':'text/plain; charset=utf-8' }); res.end('Nicht gefunden'); }
 }
 
 // Nächste Schritte schon mal holen, damit das Laufen flüssig ist
@@ -299,8 +345,8 @@ const server = http.createServer((req, res) => {
   if (req.method !== 'GET' && req.method !== 'HEAD'){ res.writeHead(405); return res.end(); }
   const pano = /^\/panos\/([a-f0-9]{12})\.jpg$/.exec(url.pathname);
   if (pano) return panoSenden(res, pano[1]);
-  const kachel = /^\/kacheln\/(\d{1,2})\/(\d{1,7})\/(\d{1,7})\.png$/.exec(url.pathname);
-  if (kachel) return kachelSenden(res, +kachel[1], +kachel[2], +kachel[3]);
+  if (url.pathname.startsWith('/vkarte/')) return karteSenden(req, res, url.pathname.slice(8));
+  if (url.pathname === '/kartenstil.json') return senden(res, path.join('daten', 'kartenstil.json'), 'public, max-age=3600');
   const vendor = /^\/vendor\/([\w-]+(?:\.[\w-]+)*\.(js|css|woff2|txt))$/.exec(url.pathname);
   if (vendor) return senden(res, path.join('vendor', vendor[1]), 'public, max-age=604800');
   if (url.pathname === '/bildnachweise') return bildnachweise(res);
