@@ -25,6 +25,20 @@ module.exports = function zugang({ titel, offen = [] }){
     return c.length === 64 && crypto.timingSafeEqual(Buffer.from(c), Buffer.from(schluessel));
   }
 
+  // Olympiade: Ein gültiges Olympia-Ticket im Link (?olymp=…) ersetzt das Passwort.
+  // Es ist mit einem Schlüssel aus demselben Passwort signiert (siehe olymp.js).
+  const olympSchluessel = passwort ? crypto.createHash('sha256').update('olymp:' + passwort).digest() : null;
+  function olympTicketOk(req){
+    if (!olympSchluessel) return false;
+    const t = new URL(req.url, 'http://x').searchParams.get('olymp') || '';
+    const [daten, sig] = t.split('.');
+    if (!daten || !sig || t.length > 4000) return false;
+    const soll = crypto.createHmac('sha256', olympSchluessel).update(daten).digest('base64url');
+    if (soll.length !== sig.length || !crypto.timingSafeEqual(Buffer.from(soll), Buffer.from(sig))) return false;
+    try { return JSON.parse(Buffer.from(daten, 'base64url').toString('utf8')).bis > Date.now(); } catch (e) { return false; }
+  }
+  const cookieFuer = req => `zugang=${schluessel}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax${(req.headers['x-forwarded-proto'] || '').includes('https') ? '; Secure' : ''}`;
+
   // Fehlversuche je IP begrenzen (nur im Arbeitsspeicher, nach 15 Minuten vergessen)
   const versuche = new Map();
   setInterval(() => { const j = Date.now(); for (const [k, v] of versuche) if (j > v.bis) versuche.delete(k); }, 60_000).unref();
@@ -90,14 +104,17 @@ module.exports = function zugang({ titel, offen = [] }){
         const ok = passwort && a.length === b.length && crypto.timingSafeEqual(a, b);
         if (!ok){ v.n++; return seite(res, 401, passwort ? 'Das Passwort stimmt nicht.' : 'Der Zugang ist noch nicht eingerichtet.'); }
         versuche.delete(ip);
-        const sicher = (req.headers['x-forwarded-proto'] || '').includes('https') ? '; Secure' : '';
-        res.writeHead(303, { 'Set-Cookie':`zugang=${schluessel}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax${sicher}`, Location:'/' });
+        res.writeHead(303, { 'Set-Cookie':cookieFuer(req), Location:'/' });
         res.end();
       })();
       return true;
     }
 
     if (hatZugang(req)) return false;
+    if (req.method === 'GET' && olympTicketOk(req)){
+      res.setHeader('Set-Cookie', cookieFuer(req));
+      return false;
+    }
     if (req.method === 'GET' && (pfad === '/' || pfad.endsWith('.html'))){
       seite(res, 401, passwort || !aufRender ? '' : 'Der Zugang ist noch nicht eingerichtet.');
     } else {

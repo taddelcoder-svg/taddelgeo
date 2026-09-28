@@ -303,6 +303,26 @@
     kartenStufe:speicher.lesen('wb-kartenstufe', 1)
   };
   window.weltenbummler = z;   // zum Nachsehen in der Konsole
+
+  // Olympiade: Mit ?olymp=… im Link geht es direkt in den Raum der Disziplin (Ticket prüft der Server)
+  const olympia = (() => {
+    let ticket = new URLSearchParams(location.search).get('olymp');
+    try {
+      if (ticket) sessionStorage.setItem('wb-olymp', ticket);
+      else ticket = sessionStorage.getItem('wb-olymp');
+    } catch {}
+    if (!ticket) return null;
+    history.replaceState(null, '', '/');
+    return { ticket, info:null, startBis:0 };
+  })();
+  z.olympia = olympia;
+  if (olympia) z.sitzung = null;
+  function olympiaBeenden(){ try { sessionStorage.removeItem('wb-olymp'); } catch {} }
+  function zurOlympiade(){
+    const ziel = olympia && olympia.info && olympia.info.zurueck;
+    olympiaBeenden();
+    if (ziel) location.href = ziel; else location.href = '/';
+  }
   z.pano = pano;
 
   /* ================= Verbindung ================= */
@@ -312,7 +332,8 @@
     z.ws = ws;
     ws.onopen = () => {
       z.verbunden = true; wartezeit = 500;
-      if (z.sitzung) senden({ t:'beitreten', code:z.sitzung.code, token:z.sitzung.token, name:name() });
+      if (olympia) z.ws.send(JSON.stringify({ t:'olymp', ticket:olympia.ticket }));
+      else if (z.sitzung) senden({ t:'beitreten', code:z.sitzung.code, token:z.sitzung.token, name:name() });
       for (const m of warteschlange.splice(0)) senden(m);
     };
     ws.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch { return; } empfangen(m); };
@@ -337,18 +358,24 @@
         break;
       case 'drin':
         z.sitzung = { code:m.code, token:m.token };
-        speicher.sitzungSchreiben('wb-sitzung', z.sitzung);
+        if (!olympia) speicher.sitzungSchreiben('wb-sitzung', z.sitzung);
         z.du = m.id;
         break;
       case 'raum':
         z.raum = m; z.du = m.du;
         if (m.regionen) z.regionen = m.regionen;
+        if (olympia && m.olymp){ olympia.info = m.olymp; olympia.startBis = m.olymp.startIn != null ? Date.now() + m.olymp.startIn : 0; }
         raumAnzeigen();
         break;
       case 'runde': rundeBeginnen(m); break;
       case 'aufloesung': aufloesungZeigen(m); break;
       case 'ende': z.ende = m; if (z.aufloesung && z.aufloesung.letzte) ergebnisKnoepfe(); break;
       case 'fehler':
+        if (m.code === 'olymp' && olympia){
+          olympiaBeenden();
+          history.replaceState(null, '', '/');
+          setTimeout(() => location.reload(), 4000);
+        }
         if (m.code === 'kein-raum' && z.sitzung){
           z.sitzung = null; speicher.sitzungSchreiben('wb-sitzung', null);
           schirm('start');
@@ -370,6 +397,7 @@
     if (welcher === 'hud') setTimeout(() => minikarte && minikarte.groesse(), 0);
   }
   function zumMenue(){
+    if (olympia){ senden({ t:'verlassen' }); zurOlympiade(); return; }
     senden({ t:'verlassen' });
     z.sitzung = null; z.raum = null; z.runde = null; z.aufloesung = null; z.ende = null;
     speicher.sitzungSchreiben('wb-sitzung', null);
@@ -446,7 +474,7 @@
     const istHost = r.host === z.du;
     if (r.phase === 'lobby' && !r.privat){
       schirm('lobby');
-      history.replaceState(null, '', '/?raum=' + r.code);
+      if (!r.olymp) history.replaceState(null, '', '/?raum=' + r.code);
       $('#lobbyCode').textContent = r.code;
       $('#lobbyLink').value = location.origin + '/?raum=' + r.code;
       $('#lobbySpieler').innerHTML = r.spieler.map(s => `<li class="${s.id === z.du ? 'du' : ''}">${esc(s.name)}${s.id === r.host ? '<span class="krone" title="Gastgeber">👑</span>' : ''}${s.id === z.du ? ' (du)' : ''}</li>`).join('');
@@ -455,6 +483,16 @@
       $('#lobbyHinweis').textContent = istHost
         ? (r.spieler.length < 2 ? 'Warte auf Mitspieler – oder starte schon mal allein.' : 'Alle da? Dann los!')
         : 'Der Gastgeber stellt ein und startet das Spiel.';
+      $('#olympBanner').hidden = !r.olymp; $('#raumKopf').hidden = !!r.olymp;
+      $('#lobby .zurueck').textContent = r.olymp ? '← Zurück zur Olympiade' : '← Hauptmenü';
+      if (r.olymp){
+        const o = r.olymp;
+        $('#olympBanner').innerHTML = `🏅 <b>${esc(o.titel)}</b> · Disziplin ${o.nr} von ${o.von}<div class="erwartet">${o.erwartet.map(e => `<span class="${e.da ? 'da' : ''}">${e.da ? '✓' : '…'} ${esc(e.n)}</span>`).join('')}</div>`;
+        einstBauen($('#partyEinst'), r.einst, () => {}, true);
+        $('#partyStart').hidden = !istHost || o.gestartet;
+        $('#partyStart').textContent = 'Ohne die anderen starten';
+        olympHinweis();
+      }
     }
     // Mitspieler-Anzeige im HUD
     if (!r.privat && r.phase === 'runde'){
@@ -656,7 +694,8 @@
       ${e.verlauf.map((v, i) => { const t = v.tipps.find(x => x.id === z.du) || {}; return `<tr><td>${i + 1}</td><td>${esc(v.ziel.land)}${t.richtigesLand ? ' ✓' : ''}</td><td class="r">${entfernungText(t.km)}</td><td class="r">${zahlFmt.format(t.punkte || 0)}</td></tr>`; }).join('')}
       </tbody></table>`;
     let knoepfe = '';
-    if (privat) knoepfe = '<button class="knopf gross" id="nochmal">Nochmal spielen</button><button class="knopf zweit" data-menue>Hauptmenü</button>';
+    if (olympia) knoepfe = '<span class="leise">Deine Punkte sind bei der Olympiade eingetragen.</span><button class="knopf gross" data-menue>Zurück zur Olympiade</button>';
+    else if (privat) knoepfe = '<button class="knopf gross" id="nochmal">Nochmal spielen</button><button class="knopf zweit" data-menue>Hauptmenü</button>';
     else if (istHost) knoepfe = '<button class="knopf gross" id="nochmalParty">Nochmal spielen</button><button class="knopf zweit" id="zurLobby">Einstellungen ändern</button><button class="knopf zweit" data-menue>Raum verlassen</button>';
     else knoepfe = '<span class="leise">Der Gastgeber kann gleich eine neue Runde starten.</span><button class="knopf zweit" data-menue>Raum verlassen</button>';
     $('#ergebnisKarte').innerHTML = `<div class="erg-innen">
@@ -676,6 +715,16 @@
     const zl = $('#zurLobby'); if (zl) zl.onclick = () => senden({ t:'lobby' });
     z.aufloesung = null;
   }
+
+  function olympHinweis(){
+    const r = z.raum;
+    if (!olympia || !r || !r.olymp || r.phase !== 'lobby') return;
+    const fehlt = r.olymp.erwartet.filter(e => !e.da).length;
+    $('#lobbyHinweis').textContent = olympia.startBis
+      ? `Alle da! Es geht los in ${Math.max(0, Math.ceil((olympia.startBis - Date.now()) / 1000))} …`
+      : `Warte auf ${fehlt} Mitspieler – es geht los, sobald alle da sind.`;
+  }
+  if (olympia) setInterval(olympHinweis, 250);
 
   /* ================= Los ================= */
   einstZeichnen();

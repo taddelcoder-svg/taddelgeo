@@ -60,11 +60,14 @@
 <section id="lobby" class="schirm">
   <div class="start-innen">
     <button class="zurueck" data-menue>← Hauptmenü</button>
-    <p class="leise">Raum-Code</p>
-    <div class="code-gross" id="lobbyCode">----</div>
-    <div class="zeile teilen">
-      <input id="lobbyLink" readonly aria-label="Einladungslink">
-      <button id="linkKopieren" class="knopf zweit">Link kopieren</button>
+    <div id="olympBanner" class="olymp-banner" hidden></div>
+    <div id="raumKopf">
+      <p class="leise">Raum-Code</p>
+      <div class="code-gross" id="lobbyCode">----</div>
+      <div class="zeile teilen">
+        <input id="lobbyLink" readonly aria-label="Einladungslink">
+        <button id="linkKopieren" class="knopf zweit">Link kopieren</button>
+      </div>
     </div>
     <h2>Spieler</h2>
     <ul id="lobbySpieler" class="spielerliste"></ul>
