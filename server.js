@@ -508,6 +508,7 @@ function aufraeumen(raum){
    Die Einstellungen kommen von der Olympiade; sind alle da, startet das Spiel von selbst.
    Am Ende geht die Rangliste an die Olympiade. */
 const OLYMP_START_MS = 6000;
+const OLYMP_WARTEN_MS = 90_000;   // fehlt jemand, geht es spätestens so lange nach dem Öffnen des Raums los
 function olympInfo(raum){
   const o = raum.olymp, da = new Set([...raum.spieler.values()].filter(s => !s.weg).map(s => s.olympId));
   return {
@@ -521,15 +522,20 @@ function olympPruefen(raum){
   const da = [...raum.spieler.values()].filter(s => !s.weg).map(s => s.olympId).filter(Boolean);
   olymp.status(o.t, da, raum.phase === 'lobby' ? 'warten' : 'laeuft');
   const alle = o.t.m.every(e => da.includes(e.s));
-  if (raum.phase === 'lobby' && !o.gestartet && alle){
-    if (!o.startUhr){
-      o.startBis = Date.now() + OLYMP_START_MS;
-      o.startUhr = setTimeout(() => {
-        o.startUhr = null;
-        if (raeume.get(raum.code) === raum && raum.phase === 'lobby' && !o.gestartet) spielStarten(raum);
-      }, OLYMP_START_MS);
-    }
-  } else if (o.startUhr){ clearTimeout(o.startUhr); o.startUhr = null; o.startBis = 0; }
+  // Startzeit: spätestens nach der Wartezeit, sind alle da, nach dem kurzen Countdown
+  let ziel = 0;
+  if (raum.phase === 'lobby' && !o.gestartet && da.length){
+    ziel = o.spaetestens;
+    if (alle) ziel = Math.min(ziel, o.startUhr && o.startBis < o.spaetestens ? o.startBis : Date.now() + OLYMP_START_MS);
+  }
+  if (ziel === o.startBis && (o.startUhr || !ziel)) return;
+  clearTimeout(o.startUhr); o.startUhr = null; o.startBis = 0;
+  if (!ziel) return;
+  o.startBis = ziel;
+  o.startUhr = setTimeout(() => {
+    o.startUhr = null;
+    if (raeume.get(raum.code) === raum && raum.phase === 'lobby' && !o.gestartet) spielStarten(raum);
+  }, Math.max(0, ziel - Date.now()));
 }
 function olympBeitreten(ws, raum, m){
   const t = olymp.ticketPruefen(m.ticket);
@@ -542,7 +548,7 @@ function olympBeitreten(ws, raum, m){
     ziel = { code:neuerCode(), privat:false, host:null, phase:'lobby',
       einst:einstellungenPruefen({ runden:t.c.runden, zeit:t.c.zeit, region:'welt', bewegen:true }),
       spieler:new Map(), runde:0, orte:[], verlauf:[], gesehen:new Set(), timer:null, ende:0,
-      olymp:{ t, gestartet:false, gemeldet:false, startUhr:null, startBis:0 } };
+      olymp:{ t, gestartet:false, gemeldet:false, startUhr:null, startBis:0, spaetestens:Date.now() + OLYMP_WARTEN_MS } };
     raeume.set(ziel.code, ziel);
     olympRaeume.set(schluessel, ziel);
   }

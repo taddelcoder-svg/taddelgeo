@@ -720,9 +720,10 @@
     const r = z.raum;
     if (!olympia || !r || !r.olymp || r.phase !== 'lobby') return;
     const fehlt = r.olymp.erwartet.filter(e => !e.da).length;
-    $('#lobbyHinweis').textContent = olympia.startBis
-      ? `Alle da! Es geht los in ${Math.max(0, Math.ceil((olympia.startBis - Date.now()) / 1000))} …`
-      : `Warte auf ${fehlt} Mitspieler – es geht los, sobald alle da sind.`;
+    const sek = Math.max(0, Math.ceil((olympia.startBis - Date.now()) / 1000));
+    $('#lobbyHinweis').textContent = !olympia.startBis ? `Warte auf ${fehlt} Mitspieler – es geht los, sobald alle da sind.`
+      : fehlt ? `Warte auf ${fehlt} Mitspieler – spätestens in ${sek} s geht es los.`
+      : `Alle da! Es geht los in ${sek} …`;
   }
   if (olympia) setInterval(olympHinweis, 250);
 
