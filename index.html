@@ -5,28 +5,46 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <!-- zoomschutz:anfang – verhindert, dass iPad/iPhone ins Spiel hineinzoomen (Doppeltipp, Zwei-Finger, Eingabefeld) -->
 <style>
-  html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+  html,body,*{touch-action:manipulation}
+  html,body{-webkit-text-size-adjust:100%;text-size-adjust:100%;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
   input,textarea,select,[contenteditable]:not([contenteditable="false"]){-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
 </style>
 <script>
 (function(){
   var d = document;
+  var feld = function(el){ return el && el.closest && el.closest('input,textarea,select,label,[contenteditable]:not([contenteditable="false"])'); };
   // Safari: Zwei-Finger-Zoom (Pinch) abbrechen
   ['gesturestart','gesturechange','gestureend'].forEach(function(n){
     d.addEventListener(n, function(e){ e.preventDefault(); }, { passive:false });
   });
-  // Zwei Finger bewegen: kein Zoomen/Scrollen der Seite (Spiel-Events kommen trotzdem an)
-  d.addEventListener('touchmove', function(e){
-    if (e.touches.length > 1 || (typeof e.scale === 'number' && e.scale !== 1)) e.preventDefault();
+  // Zweiter Finger auf dem Bildschirm: Safari darf daraus keinen Zoom machen (Spiel-Events kommen trotzdem an)
+  d.addEventListener('touchstart', function(e){
+    if (e.touches.length > 1 && e.cancelable) e.preventDefault();
   }, { passive:false });
-  // Falls trotzdem gezoomt wurde (z. B. ältere iPads): sofort auf 100 % zurück
+  d.addEventListener('touchmove', function(e){
+    if (e.cancelable && (e.touches.length > 1 || (typeof e.scale === 'number' && e.scale !== 1))) e.preventDefault();
+  }, { passive:false });
+  // Doppeltipp: den zweiten schnellen Tipp nicht an Safari weitergeben (sonst Zoom),
+  // den Klick dafür selbst auslösen, damit Knöpfe weiter auf jeden Tipp reagieren
+  var letzterTipp = 0;
+  d.addEventListener('touchend', function(e){
+    var jetzt = Date.now(), schnell = jetzt - letzterTipp < 400;
+    letzterTipp = jetzt;
+    if (!schnell || !e.cancelable || e.defaultPrevented || feld(e.target)) return;
+    e.preventDefault();
+    var t = e.changedTouches && e.changedTouches[0];
+    if (t && e.target && e.target.dispatchEvent) e.target.dispatchEvent(new MouseEvent('click', {
+      bubbles:true, cancelable:true, view:window,
+      clientX:t.clientX, clientY:t.clientY, screenX:t.screenX, screenY:t.screenY
+    }));
+  }, { passive:false });
+  // Falls trotzdem gezoomt wurde: sofort auf 100 % zurück
   var vv = window.visualViewport, meta = d.querySelector('meta[name="viewport"]');
   if (vv && meta){
     var basis = meta.getAttribute('content'), wechsel = false, laeuft = false;
     var zurueck = function(){
       if (laeuft || vv.scale <= 1.01) return;
-      var a = d.activeElement;
-      if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return;
+      if (feld(d.activeElement)) return;
       laeuft = true;
       setTimeout(function(){
         wechsel = !wechsel;
