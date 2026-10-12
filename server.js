@@ -149,7 +149,7 @@ Die Reihenfolge hier verrät nicht, welche Strecke im Spiel gerade dran ist.</p>
 <p>Karte: <a href="https://openfreemap.org" rel="noopener" target="_blank">OpenFreeMap</a> © <a href="https://www.openmaptiles.org/" rel="noopener" target="_blank">OpenMapTiles</a>, Daten © <a href="https://www.openstreetmap.org/copyright" rel="noopener" target="_blank">OpenStreetMap</a>-Mitwirkende (ODbL). Beschriftungen für das Spiel vereinheitlicht (deutsche bzw. lateinische Namen).
 Ländergrenzen für die Auswertung: <a href="https://www.naturalearthdata.com" rel="noopener" target="_blank">Natural Earth</a> (gemeinfrei).
 Kartenanzeige: MapLibre GL JS (BSD-Lizenz).
-3D-Anzeige: three.js (MIT-Lizenz). Schrift: Barlow Semi Condensed (SIL Open Font License).</p>
+3D-Anzeige: three.js (MIT-Lizenz). Schrift: Bricolage Grotesque (SIL Open Font License).</p>
 <ol>${zeilen}</ol>
 <p><a href="/">Zurück zum Spiel</a> · <a href="/datenschutz">Datenschutz</a></p>
 </main></body></html>`);

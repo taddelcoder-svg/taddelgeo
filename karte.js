@@ -20,7 +20,7 @@
     const el = document.createElement('div');
     el.className = 'karten-nadel';
     const innen = text
-      ? `<text x="14" y="15.5" text-anchor="middle" font-size="10" font-weight="800" fill="#fff" font-family="Barlow SC, system-ui, sans-serif">${escHtml(text.slice(0, 2).toUpperCase())}</text>`
+      ? `<text x="14" y="15.5" text-anchor="middle" font-size="10" font-weight="800" fill="#fff" font-family="Bricolage Grotesque, system-ui, sans-serif">${escHtml(text.slice(0, 2).toUpperCase())}</text>`
       : '<circle cx="14" cy="12" r="4.2" fill="#fff"/>';
     el.innerHTML = `<svg viewBox="0 0 28 38" width="28" height="38" aria-hidden="true"><path d="M14 37C14 37 2 22 2 13a12 12 0 0 1 24 0c0 9-12 24-12 24z" fill="${farbe}" stroke="#fff" stroke-width="2.5"/>${innen}</svg>`;
     return el;
