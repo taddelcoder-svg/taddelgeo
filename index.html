@@ -257,6 +257,13 @@
 </script>
 
 <!-- Rangliste der Spielesammlung: meldet Spielzeit, Punkte und Progress -->
+<script>
+window.SLZaehle=function(k,f){try{var s=JSON.parse(localStorage.getItem(k))||{};f(s);localStorage.setItem(k,JSON.stringify(s))}catch(e){}};
+window.SLRangAdapter=function(){
+  var s={};try{s=JSON.parse(localStorage.getItem('sl_wb'))||{}}catch(e){}
+  return{punkte:s.best||0,progress:Math.min(100,(s.anteil||0)*100)}
+};
+</script>
 <script src="https://rangliste-aoee.onrender.com/melder.js" data-spiel="Weltenbummler" defer></script>
 </body>
 </html>
