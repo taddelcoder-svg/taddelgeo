@@ -686,6 +686,7 @@
     grosskarte.passend(marker, 60);
     const ich = e.rangliste.find(x => x.id === z.du) || { punkte:0 };
     const anteil = ich.punkte / e.max;
+    if (!e.slGez) { e.slGez = 1; window.SLZaehle && SLZaehle('sl_wb', s => { s.spiele = (s.spiele || 0) + 1; s.best = Math.max(s.best || 0, Math.round(ich.punkte)); s.anteil = Math.max(s.anteil || 0, anteil || 0); }); }
     const urteil = anteil > 0.9 ? 'Weltklasse! 🌍' : anteil > 0.7 ? 'Echte Weltenbummler-Qualitäten!' : anteil > 0.45 ? 'Solide Reise!' : anteil > 0.2 ? 'Da geht noch was.' : 'Die Welt ist groß …';
     const rang = e.rangliste.length > 1 ? `<table class="erg-tabelle"><thead><tr><th>Platz</th><th>Spieler</th><th class="r">Punkte</th></tr></thead><tbody>
       ${e.rangliste.map((s, i) => `<tr class="${s.id === z.du ? 'du' : ''}"><td>${['🥇', '🥈', '🥉'][i] || i + 1 + '.'}</td><td><span class="punkt" style="background:${farbeVon(s.id)}"></span>${esc(s.name)}</td><td class="r">${zahlFmt.format(s.punkte)}</td></tr>`).join('')}
